@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tandy Nitespace</title>
+    <link rel="stylesheet" href="./index.css">
+    <link rel="stylesheet" href="./chat.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+</head>
+
+<body>
+
+    <!-- <img src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/1231630/moon2.png" alt=""> -->
+    <div class="stars"></div>
+    <!-- <div class="twinkling"></div> -->
+    <!-- <div class="clouds"></div> -->
+
+    <header>
+        <span className="text-red-500" style="color: red;">T</span>
+        <span className="text-yellow-500" style="color: yellow;">A</span>
+        <span className="text-blue-500" style="color: blue;">N</span>
+        <span className="text-purple-500" style="color: purple;">D</span>
+        <span className="text-green-500" style="color: green;">Y</span>
+    </header>
+    <div class="app-grid">
+        <div class="pretend-app">
+            tandylinx 🤪
+        </div>
+        <div class="pretend-app">
+            tandy world 🤪
+        </div>
+        <div class="pretend-app">
+            tandy forum
+        </div>
+        <div class="pretend-app">
+            tandy chat
+        </div>
+        <div class="pretend-app">
+            a shader thing
+        </div>
+        <div class="pretend-app">
+            digiCDs
+        </div>
+        <div class="pretend-app">
+            timelocked thing
+        </div>
+        <div class="pretend-app">
+            fake tile shader
+        </div>
+        <div class="pretend-app">
+            weird shader
+        </div>
+        <div class="pretend-app">
+            weird error page
+        </div>
+        <div class="pretend-app">
+            tandynet
+        </div>
+    </div>
+
+    <div id="chat-container">
+        <div id="chat-julie" class="chatbox">
+            <div class="chatbox-header">
+                <h3>Julie</h3>
+            </div>
+            <div class="chatbox-content">
+                <div class="chatbox-message">
+                    <span class="chatbox-message__sender">Julie:</span>
+                    <span class="chatbox-message__content">Hey, how are you?</span>
+                </div>
+                <div class="chatbox-message">
+                    <span class="chatbox-message__sender">You:</span>
+                    <span class="chatbox-message__content">I'm good, thanks! How about you?</span>
+                </div>
+                <div class="chatbox-message">
+                    <span class="chatbox-message__sender">Julie:</span>
+                    <span class="chatbox-message__content">I'm doing great, thanks for asking!</span>
+                </div>
+            </div>
+            <div class="chatbox-footer">
+                <input type="text" placeholder="Type a message...">
+                <button>Send</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="user-list-container" class="">
+        <button id="toggle-button">Hide Online Users</button>
+        <div id="user-list-content">
+            <h3>Online Users</h3>
+            <ul id="online-users">
+                <!-- Online users will be injected here -->
+            </ul>
+            <h4>Recently Online Users</h4>
+            <ul id="recent-users">
+                <!-- Recently online users will be injected here -->
+            </ul>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const toggleButton = document.getElementById('toggle-button');
+            const container = document.getElementById('user-list-container');
+
+            // Dummy data for users
+            const onlineUsers = ['jestereliceX', 'passwordtest', 'umru'];
+            const recentUsers = ['Dave (2 min ago)', 'Eve (10 min ago)', 'Frank (30 min ago)'];
+
+            // Populate the online users list
+            const onlineUsersList = document.getElementById('online-users');
+            onlineUsers.forEach(user => {
+                const li = document.createElement('li');
+                const dot = document.createElement('span');
+                dot.classList.add('dot', 'green');
+
+                const username = document.createElement('span');
+                username.textContent = user;
+                li.appendChild(dot);
+                li.appendChild(username);
+                onlineUsersList.appendChild(li);
+            });
+
+            // Populate the recently online users list
+            const recentUsersList = document.getElementById('recent-users');
+            recentUsers.forEach(user => {
+                const li = document.createElement('li');
+                // const statusDot = document.createElement('i');
+                // statusDot.classList.add('pulse');
+                // statusDot.classList.add('green');
+
+                // li.appendChild(document.createElement('i'));;
+                const dot = document.createElement('span');
+                dot.classList.add('dot');
+
+                const username = document.createElement('span');
+                username.textContent = user;
+                li.appendChild(dot);
+                li.appendChild(username);
+
+                recentUsersList.appendChild(li);
+            });
+
+            // Toggle visibility of the user list
+            toggleButton.addEventListener('click', () => {
+                if (container.classList.contains('collapsed')) {
+                    container.classList.remove('collapsed');
+                    toggleButton.textContent = 'Hide Online Users';
+                } else {
+                    container.classList.add('collapsed');
+                    toggleButton.textContent = 'Show Online Users';
+                }
+            });
+        });
+    </script>
+
+<script>
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x000000, 0);
+document.body.appendChild(renderer.domElement);
+
+// Use BufferGeometry instead of PlaneGeometry for better performance
+const geometry = new THREE.PlaneGeometry(5, 4, 100, 100);
+const material = new THREE.MeshPhongMaterial({
+    color: 0x801080,
+    specular: 0x444444,
+    shininess: 30,
+    flatShading: false,
+    side: THREE.DoubleSide
+});
+
+const plane = new THREE.Mesh(geometry, material);
+scene.add(plane);
+
+// Enhanced lighting setup
+const light = new THREE.DirectionalLight(0xffffff, 0.8);
+light.position.set(-5, 5, 7);
+scene.add(light);
+const light2 = new THREE.DirectionalLight(0xffffff, 0.5);
+light2.position.set(5, -5, 7);
+scene.add(light2);
+const ambientLight = new THREE.AmbientLight(0x404040);
+scene.add(ambientLight);
+
+camera.position.z = 2;
+
+// Physics simulation variables
+const originalPositions = geometry.attributes.position.array.slice();
+const velocities = new Float32Array(geometry.attributes.position.array.length);
+const forces = new Float32Array(geometry.attributes.position.array.length);
+let mousePosition = new THREE.Vector2();
+let raycaster = new THREE.Raycaster();
+let intersectionPoint = new THREE.Vector3();
+const dragRadius = 0.4;
+
+// Adjusted physics constants
+const SPRING_CONSTANT = 0.1;
+const DAMPING = 0.97;
+const MASS = 20.90;
+const FORCE_MULTIPLIER = 0.15;
+
+function updateMousePosition(event) {
+    mousePosition.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mousePosition.y = -(event.clientY / window.innerHeight) * 2 + 1;
+}
+
+document.addEventListener('mousemove', updateMousePosition);
+document.addEventListener('touchmove', (e) => {
+    const touch = e.touches[0];
+    updateMousePosition({ clientX: touch.clientX, clientY: touch.clientY });
+}, { passive: true });
+
+// Improved physics simulation with better normal calculations
+function updatePhysics() {
+    const positions = geometry.attributes.position.array;
+    forces.fill(0);
+
+    raycaster.setFromCamera(mousePosition, camera);
+    const intersection = raycaster.intersectObject(plane);
+    
+    if (intersection.length > 0) {
+        intersectionPoint.copy(intersection[0].point);
+        
+        for (let i = 0; i < positions.length; i += 3) {
+            const vertexPosition = new THREE.Vector3(
+                positions[i],
+                positions[i + 1],
+                positions[i + 2]
+            );
+            
+            const distance = vertexPosition.distanceTo(intersectionPoint);
+            
+            if (distance < dragRadius) {
+                const force = 1 - (distance / dragRadius);
+                const direction = vertexPosition.sub(intersectionPoint).normalize();
+                forces[i] += direction.x * force * FORCE_MULTIPLIER;
+                forces[i + 1] += direction.y * force * FORCE_MULTIPLIER;
+                forces[i + 2] += direction.z * force * FORCE_MULTIPLIER;
+            }
+        }
+    }
+
+    // Update positions and velocities
+    for (let i = 0; i < positions.length; i += 3) {
+        const dx = originalPositions[i] - positions[i];
+        const dy = originalPositions[i + 1] - positions[i + 1];
+        const dz = originalPositions[i + 2] - positions[i + 2];
+        
+        forces[i] += dx * SPRING_CONSTANT;
+        forces[i + 1] += dy * SPRING_CONSTANT;
+        forces[i + 2] += dz * SPRING_CONSTANT;
+        
+        velocities[i] = velocities[i] * DAMPING + forces[i] / MASS;
+        velocities[i + 1] = velocities[i + 1] * DAMPING + forces[i + 1] / MASS;
+        velocities[i + 2] = velocities[i + 2] * DAMPING + forces[i + 2] / MASS;
+        
+        positions[i] += velocities[i];
+        positions[i + 1] += velocities[i + 1];
+        positions[i + 2] += velocities[i + 2];
+    }
+
+    // More efficient normal updates
+    geometry.attributes.position.needsUpdate = true;
+    geometry.computeVertexNormals();
+    
+    // Force normal buffer update
+    geometry.attributes.normal.needsUpdate = true;
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    updatePhysics();
+    renderer.render(scene, camera);
+}
+
+function onWindowResize() {
+    const aspect = window.innerWidth / window.innerHeight;
+    camera.aspect = aspect;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    
+    const distance = camera.position.z;
+    const vFov = camera.fov * Math.PI / 180;
+    const height = 2 * Math.tan(vFov / 2) * distance;
+    const width = height * aspect;
+    
+    plane.scale.set(width / 4 * 1.2, height / 3 * 1.2, 1);
+}
+
+window.addEventListener('resize', onWindowResize);
+onWindowResize();
+animate();
+</script>
+</body>
+
+</html>
+
+
+
+
+
+
+
+
+
+<!-- <div class="app-header">
+    <h1>Tandy Nitespace</h1>
+</div>
+<div class="app-content">
+    <div class="app-content__left">
+        <div class="app-content__left__item">
+            <h2>What is Tandy Nitespace?</h2>
+            <p>
+                Tandy Nitespace is a simple web application that allows you to create a list of your favorite things.
+            </p>
+        </div>
+        <div class="app-content__left__item">
+            <h2>How to use Tandy Nitespace?</h2>
+            <p>
+                To use Tandy Nitespace, you need to create an account. Once you have an account, you can start creating your list of favorite things.
+            </p>
+        </div>
+    </div>
+    <div class="app-content__right">
+        <div class="app-content__right__item">
+            <h2>Sign Up</h2>
+            <form action="./signup.php" method="POST">
+                <div class="form-group"></div> -->

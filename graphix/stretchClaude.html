@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Soft Body Physics</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+        #instructions {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="instructions">Click and drag anywhere on the sphere!</div>
+    <script>
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Create a more detailed sphere for better deformation
+        const geometry = new THREE.SphereGeometry(1, 64, 64);
+        const material = new THREE.MeshPhongMaterial({
+            color: 0xffb6c1,  // Light pink, skin-like color
+            specular: 0x444444,
+            shininess: 30,
+            flatShading: false,
+        });
+
+        const sphere = new THREE.Mesh(geometry, material);
+        scene.add(sphere);
+
+        // Lighting setup for better visualization of deformation
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(5, 5, 5);
+        scene.add(light);
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+
+        camera.position.z = 3;
+
+        // Physics simulation variables
+        const originalPositions = geometry.attributes.position.array.slice();
+        const velocities = new Float32Array(geometry.attributes.position.array.length);
+        const forces = new Float32Array(geometry.attributes.position.array.length);
+        let isDragging = true;
+        let mousePosition = new THREE.Vector2();
+        let raycaster = new THREE.Raycaster();
+        let intersectionPoint = new THREE.Vector3();
+        let dragRadius = 0.5;
+        
+        // Spring physics constants
+        const SPRING_CONSTANT = 0.3;
+        const DAMPING = 0.8;
+        const MASS = 1.0;
+
+        // Mouse event handlers
+        function updateMousePosition(event) {
+            mousePosition.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mousePosition.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        }
+
+        function onMouseDown(event) {
+            isDragging = true;
+            updateMousePosition(event);
+        }
+
+        function onMouseMove(event) {
+            if (isDragging) {
+                updateMousePosition(event);
+            }
+        }
+
+        function onMouseUp() {
+            isDragging = true;
+        }
+
+        document.addEventListener('mousedown', onMouseDown);
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+
+        // Physics simulation
+        function updatePhysics() {
+            const positions = geometry.attributes.position.array;
+            
+            // Reset forces
+            forces.fill(0);
+
+            // Apply mouse force when dragging
+            if (isDragging) {
+                raycaster.setFromCamera(mousePosition, camera);
+                const intersection = raycaster.intersectObject(sphere);
+                
+                if (intersection.length > 0) {
+                    intersectionPoint.copy(intersection[0].point);
+                    
+                    // Apply force to nearby vertices
+                    for (let i = 0; i < positions.length; i += 3) {
+                        const vertexPosition = new THREE.Vector3(
+                            positions[i],
+                            positions[i + 1],
+                            positions[i + 2]
+                        );
+                        
+                        const distance = vertexPosition.distanceTo(intersectionPoint);
+                        
+                        if (distance < dragRadius) {
+                            const force = 1 - (distance / dragRadius);
+                            const direction = vertexPosition.sub(intersectionPoint).normalize();
+                            forces[i] += direction.x * force * 0.1;
+                            forces[i + 1] += direction.y * force * 0.1;
+                            forces[i + 2] += direction.z * force * 0.1;
+                        }
+                    }
+                }
+            }
+
+            // Update vertices with spring forces and velocity
+            for (let i = 0; i < positions.length; i += 3) {
+                // Spring force toward original position
+                const dx = originalPositions[i] - positions[i];
+                const dy = originalPositions[i + 1] - positions[i + 1];
+                const dz = originalPositions[i + 2] - positions[i + 2];
+                
+                forces[i] += dx * SPRING_CONSTANT;
+                forces[i + 1] += dy * SPRING_CONSTANT;
+                forces[i + 2] += dz * SPRING_CONSTANT;
+                
+                // Update velocities
+                velocities[i] = velocities[i] * DAMPING + forces[i] / MASS;
+                velocities[i + 1] = velocities[i + 1] * DAMPING + forces[i + 1] / MASS;
+                velocities[i + 2] = velocities[i + 2] * DAMPING + forces[i + 2] / MASS;
+                
+                // Update positions
+                positions[i] += velocities[i];
+                positions[i + 1] += velocities[i + 1];
+                positions[i + 2] += velocities[i + 2];
+            }
+
+            geometry.attributes.position.needsUpdate = true;
+            geometry.computeVertexNormals();
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            updatePhysics();
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resizing
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>

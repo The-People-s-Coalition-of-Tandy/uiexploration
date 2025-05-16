@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tandy Nitespace</title>
+    <link rel="stylesheet" href="./index.css">
+    <link rel="stylesheet" href="./chat.css">
+
+    <style>
+
+        .pretend-app {
+            position: relative;
+        }
+
+        .padlock {
+            width: 272px;
+            height: 200px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 100;
+            filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.5)) blur(1px);
+        }
+    </style>
+</head>
+
+<body id="capture">
+
+    <!-- <img src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/1231630/moon2.png" alt=""> -->
+    <div class="stars"></div>
+    <!-- <div class="twinkling"></div> -->
+    <!-- <div class="clouds"></div> -->
+
+    <header>
+        <span className="text-red-500" style="color: red;">T</span>
+        <span className="text-yellow-500" style="color: yellow;">A</span>
+        <span className="text-blue-500" style="color: blue;">N</span>
+        <span className="text-purple-500" style="color: purple;">D</span>
+        <span className="text-green-500" style="color: green;">Y</span>
+    </header>
+    <div class="app-grid">
+        <div class="pretend-app">
+            tandylinx 🤪
+        </div>
+        <div class="pretend-app">
+            tandy world 🤪
+        </div>
+        <div class="pretend-app" style="position: relative;">
+            <img style="width: 200px;height: 250px; z-index: 100; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);" class="button-emboss" src="./graphix/aeroExperiments/button/assets/xeroz2.png" alt="button">
+        </div>
+        <div class="pretend-app">
+            tandy chat
+        </div>
+        <div class="pretend-app">
+            a shader thing
+        </div>
+        <div class="pretend-app">
+            digiCDs
+        </div>
+        <div class="pretend-app">
+            <img class="padlock" src="padlock2alpha.png" alt="padlock">
+        </div>
+        <div class="pretend-app">
+            fake tile shader
+        </div>
+        <div class="pretend-app">
+            weird shader
+        </div>
+        <div class="pretend-app">
+            <img class="padlock" src="https://web.archive.org/web/20090729230851im_/http://www.geocities.com/citylocks/rotatingpadlock.gif" alt="padlock">
+        </div>
+        <div class="pretend-app">
+            tandynet
+        </div>
+    </div>
+
+    <div id="chat-container">
+        <div id="chat-julie" class="chatbox">
+            <div class="chatbox-header">
+                <h3>Julie</h3>
+            </div>
+            <div class="chatbox-content">
+                <div class="chatbox-message">
+                    <span class="chatbox-message__sender">Julie:</span>
+                    <span class="chatbox-message__content">Hey, how are you?</span>
+                </div>
+                <div class="chatbox-message">
+                    <span class="chatbox-message__sender">You:</span>
+                    <span class="chatbox-message__content">I'm good, thanks! How about you?</span>
+                </div>
+                <div class="chatbox-message">
+                    <span class="chatbox-message__sender">Julie:</span>
+                    <span class="chatbox-message__content">I'm doing great, thanks for asking!</span>
+                </div>
+            </div>
+            <div class="chatbox-footer">
+                <input type="text" placeholder="Type a message...">
+                <button>Send</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="user-list-container" class="">
+        <button id="toggle-button">Hide Online Users</button>
+        <div id="user-list-content">
+            <h3>Online Users</h3>
+            <ul id="online-users">
+                <!-- Online users will be injected here -->
+            </ul>
+            <h4>Recently Online Users</h4>
+            <ul id="recent-users">
+                <!-- Recently online users will be injected here -->
+            </ul>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const toggleButton = document.getElementById('toggle-button');
+            const container = document.getElementById('user-list-container');
+
+            // Dummy data for users
+            const onlineUsers = ['jestereliceX', 'passwordtest', 'umru'];
+            const recentUsers = ['Dave (2 min ago)', 'Eve (10 min ago)', 'Frank (30 min ago)'];
+
+            // Populate the online users list
+            const onlineUsersList = document.getElementById('online-users');
+            onlineUsers.forEach(user => {
+                const li = document.createElement('li');
+                const dot = document.createElement('span');
+                dot.classList.add('dot', 'green');
+
+                const username = document.createElement('span');
+                username.textContent = user;
+                li.appendChild(dot);
+                li.appendChild(username);
+                onlineUsersList.appendChild(li);
+            });
+
+            // Populate the recently online users list
+            const recentUsersList = document.getElementById('recent-users');
+            recentUsers.forEach(user => {
+                const li = document.createElement('li');
+                // const statusDot = document.createElement('i');
+                // statusDot.classList.add('pulse');
+                // statusDot.classList.add('green');
+
+                // li.appendChild(document.createElement('i'));;
+                const dot = document.createElement('span');
+                dot.classList.add('dot');
+
+                const username = document.createElement('span');
+                username.textContent = user;
+                li.appendChild(dot);
+                li.appendChild(username);
+
+                recentUsersList.appendChild(li);
+            });
+
+            // Toggle visibility of the user list
+            toggleButton.addEventListener('click', () => {
+                if (container.classList.contains('collapsed')) {
+                    container.classList.remove('collapsed');
+                    toggleButton.textContent = 'Hide Online Users';
+                } else {
+                    container.classList.add('collapsed');
+                    toggleButton.textContent = 'Show Online Users';
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
+
+
+
+
+
+
+
+
+<!-- <div class="app-header">
+    <h1>Tandy Nitespace</h1>
+</div>
+<div class="app-content">
+    <div class="app-content__left">
+        <div class="app-content__left__item">
+            <h2>What is Tandy Nitespace?</h2>
+            <p>
+                Tandy Nitespace is a simple web application that allows you to create a list of your favorite things.
+            </p>
+        </div>
+        <div class="app-content__left__item">
+            <h2>How to use Tandy Nitespace?</h2>
+            <p>
+                To use Tandy Nitespace, you need to create an account. Once you have an account, you can start creating your list of favorite things.
+            </p>
+        </div>
+    </div>
+    <div class="app-content__right">
+        <div class="app-content__right__item">
+            <h2>Sign Up</h2>
+            <form action="./signup.php" method="POST">
+                <div class="form-group"></div> -->

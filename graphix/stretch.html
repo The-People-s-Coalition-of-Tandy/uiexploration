@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Stretchy Skin</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+    <script type="importmap"> { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@<version>/examples/jsm/" } } </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.152.0/examples/jsm/controls/OrbitControls.js';
+
+    // Setup scene, camera, renderer
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.z = 2;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Add controls
+    const controls = new OrbitControls(camera, renderer.domElement);
+
+    // Create sphere geometry and a custom shader material for stretchy effect
+    const geometry = new THREE.SphereGeometry(0.5, 64, 64);
+    
+    const stretchyMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uMouse: { value: new THREE.Vector2(0, 0) },
+        uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) }
+      },
+      vertexShader: `
+        uniform float uTime;
+        uniform vec2 uMouse;
+        
+        varying vec2 vUv;
+        varying vec3 vNormal;
+
+        void main() {
+          vUv = uv;
+          vNormal = normal;
+          
+          // Stretchy displacement based on mouse position
+          float displacement = sin(distance(uv, uMouse) * 15.0 + uTime * 2.0) * 0.1;
+          vec3 newPosition = position + normal * displacement;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
+        }
+      `,
+      fragmentShader: `
+        varying vec2 vUv;
+        varying vec3 vNormal;
+
+        void main() {
+          // Simple coloring with lighting effect
+          float intensity = dot(normalize(vNormal), vec3(0.0, 0.0, 1.0));
+          gl_FragColor = vec4(vec3(0.5, 0.8, 1.0) * intensity, 1.0);
+        }
+      `,
+      wireframe: false
+    });
+
+    const sphere = new THREE.Mesh(geometry, stretchyMaterial);
+    scene.add(sphere);
+
+    // Track mouse position
+    window.addEventListener('mousemove', (event) => {
+      stretchyMaterial.uniforms.uMouse.value.x = (event.clientX / window.innerWidth) * 2 - 1;
+      stretchyMaterial.uniforms.uMouse.value.y = - (event.clientY / window.innerHeight) * 2 + 1;
+    });
+
+    // Animation loop
+    function animate() {
+      stretchyMaterial.uniforms.uTime.value += 0.05;
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      stretchyMaterial.uniforms.uResolution.value.set(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>

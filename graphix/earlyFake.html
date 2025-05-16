@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nitespace</title>
+</head>
+
+<body id="capture">
+    <div id="page">
+        <h1>Tandy Nitespace</h1>
+
+    <!-- The Nitespace is a wide-area<a name="0" href="https://info.cern.ch/hypertext/WWW/WhatIs.html">
+        hypermedia</a> information retrieval
+    initiative aiming to give universal
+    access to a large universe of documents.<p> -->
+        <!-- Everything there is online about
+        W3 is linked directly or indirectly
+        to this document, including an <a name="24" href="https://info.cern.ch/hypertext/WWW/Summary.html">executive
+            summary</a> of the project, <a name="29"
+            href="https://info.cern.ch/hypertext/WWW/Administration/Mailing/Overview.html">Mailing lists</a>
+        , <a name="30" href="https://info.cern.ch/hypertext/WWW/Policy.html">Policy</a> , November's <a name="34"
+            href="https://info.cern.ch/hypertext/WWW/News/9211.html">W3 news</a> ,
+        <a name="41" href="https://info.cern.ch/hypertext/WWW/FAQ/List.html">Frequently Asked Questions</a> . -->
+    </p>
+    <dl>
+        <dt><a name="44" href="https://info.cern.ch/hypertext/DataSources/Top.html">Tandylinx</a>
+        </dt>
+        <dd> Pointers to the
+            world's online information
+        </dd>
+        <dt><a name="46" href="https://info.cern.ch/hypertext/WWW/Help.html">Tandy DigiCDs</a>
+        </dt>
+        <dd> 
+            The new way of playing and sharing music.
+        </dd>
+        <dt><a name="47" href="https://info.cern.ch/hypertext/WWW/Technical.html">TandyWorld</a>
+        </dt>
+        <dd>
+            Share your thoughts 
+        </dd>
+        <dt><a name="40" href="https://info.cern.ch/hypertext/WWW/Bibliography.html">TandyNet</a>
+        </dt>
+        <dd> The new Internet DNS.
+        </dd>
+        <dt><a name="47" href="https://info.cern.ch/hypertext/WWW/Technical.html">TandyForum</a>
+        </dt>
+        <dd>
+            Discuss your thoughts 
+        </dd>
+        <dt><a name="14" href="https://info.cern.ch/hypertext/WWW/People.html">Orb</a>
+        </dt>
+        <dd> A list of some people involved
+            in the project.
+        </dd>
+        <dt><a name="15" href="https://info.cern.ch/hypertext/WWW/History.html">Grayking</a>
+        </dt>
+        <dd> Paper documentation
+            on the Coalition and references.
+        </dd>
+        <dt><a name="37" href="https://info.cern.ch/hypertext/WWW/Helping.html">Round World</a>
+        </dt>
+        <dd> See what it's all about
+        </dd>
+        <dt><a name="48" href="https://info.cern.ch/hypertext/README.html">Pressure</a>
+        </dt>
+        <dd> Getting the code by<a name="49"
+                href="https://info.cern.ch/hypertext/WWW/LineMode/Defaults/Distribution.html">
+                anonymous FTP</a> , etc.
+        </dd>
+    </dl>
+    <br>
+<!-- <hr> -->
+    <h2>Online Users</h2>
+    <dl>
+        <dt>umru • <img src="./CDIcon.png" alt="CD Icon" width="20" height="20">
+        </dt>
+        <!-- <dd> No Status
+        </dd> -->
+        <dt>jesterelliceX •
+        </dt>
+        <!-- <dd> No Status
+        </dd> -->
+        <dt>pcotandy
+        </dt>
+        <!-- <dd> No Status
+        </dd> -->
+        <dt>krissanthemum
+        </dt>
+        <!-- <dd> No Status
+        </dd> -->
+        <dt>qui.et
+        </dt>
+        <!-- <dd> No Status
+        </dd> -->
+        <dt>ButitsAlex
+        </dt>
+        <!-- <dd> No Status
+        </dd> -->
+    </dl>
+    </div>
+    <script src="./html2canvas.min.js"></script>
+
+
+    <script type="text/x-vertex-shader" id="vs">
+        attribute vec3 a_position;
+        attribute vec3 a_normal;
+        attribute vec2 a_texcoord;
+        
+        varying vec3 v_view;
+        varying vec3 v_light;
+        varying vec3 v_normal;
+        varying vec2 v_texcoord;
+        
+        void main() {
+            vec4 p = u_modelView * vec4(a_position, 1.0);
+            v_normal = mat3(u_modelView) * a_normal;
+            v_view = -p.xyz;
+            v_light = u_lightPos - p.xyz;
+            v_texcoord = a_texcoord;
+            gl_Position = u_proj * p;
+        }
+        </script>
+        
+        <script type="text/x-fragment-shader" id="fs">
+        varying vec3 v_view;
+        varying vec3 v_light;
+        varying vec3 v_normal;
+        varying vec2 v_texcoord;
+        uniform sampler2D u_albedo;
+        void main() {
+            vec3 n = normalize(v_normal);
+            vec3 l = normalize(v_light);
+            vec3 v = normalize(v_view);
+            vec3 r = reflect(-l, n);
+            vec3 albedo = pow(texture2D(u_albedo, v_texcoord).xyz, vec3(2.2));
+            vec3 diffuse = max(dot(n, l), 0.0)*albedo;
+            vec3 specular = vec3(0.0);//pow(max(dot(r, v), 0.0), 30.0) * u_lightColor;
+            vec3 color = saturate(u_ambient * albedo + diffuse + specular);
+            gl_FragColor = vec4(pow(color, vec3(1.0/2.2)), 1.0);
+        }
+        </script>
+    <script>
+        window.addEventListener('keydown', async function(e) {
+        if (e.key.toLowerCase() === 's') {
+            // stop the simulation
+            // stop();
+            // delete page
+            setTimeout(() => {
+                let page = document.getElementById("page");
+                let canvas = document.querySelector(".simulation");
+                console.log(page);
+                page.innerHTML = "";
+                // canvas.remove();
+                // add absolute to remaining canvases
+                let canvases = document.querySelectorAll("canvas");
+                for (let canvas of canvases) {
+                    canvas.style.position = "absolute";
+                    canvas.style.top = "0";
+                    canvas.style.left = "0";
+                }
+
+                // delete style
+                let styles = document.querySelectorAll("style");
+                for (let style of styles) {
+                    style.remove();
+                }
+
+                //replace page with content of ./earlytest.html without deleting the canvas
+                // let earlytest = document.createElement("iframe");
+                // earlytest.src = "./earlytest.html";
+                // earlytest.style.position = "absolute";
+                // earlytest.style.top = "0";
+                // earlytest.style.left = "0";
+                // document.body.appendChild(earlytest);
+
+                //iframe fullscreen
+                let iframe = document.createElement("iframe");
+                iframe.src = "../graphix/glass.html";
+                iframe.style.position = "absolute";
+                iframe.style.top = "0";
+                iframe.style.left = "0";
+                iframe.style.zIndex = "-1";
+                iframe.style.width = "100%";
+                iframe.style.height = "100%";
+                document.body.appendChild(iframe);
+
+                // fetch('./glass.html')
+                //     .then(response => response.text())
+                //     .then(text => {
+                //         let page = document.getElementById("page");
+                //         page.innerHTML = text;
+                //     });
+            }, 100);
+
+        }
+    });
+        
+</script>
+<script src="simutil.js"></script>
+<script src="cloth.js"></script>
+
+
+</body>
+
+</html>

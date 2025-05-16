@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stretchy Background</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden;
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #2980b9;
+        }
+        canvas { 
+            display: block; 
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: -1;
+        }
+        .content {
+            position: relative;
+            z-index: 1;
+            padding: 2rem;
+        }
+        h1 {
+            font-size: 3rem;
+            margin: 0 0 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="content">
+        <h1>BLUE DiSH</h1>
+    </div>
+    <script>
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x2980b9);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Higher resolution plane geometry
+        const geometry = new THREE.PlaneGeometry(5, 4, 200, 150);
+        const material = new THREE.MeshStandardMaterial({
+            color: 0x2980b9,
+            roughness: 0.8,
+            metalness: 0.1,
+            flatShading: false,
+            side: THREE.DoubleSide
+        });
+
+        const plane = new THREE.Mesh(geometry, material);
+        scene.add(plane);
+
+        // Enhanced lighting
+        const light = new THREE.DirectionalLight(0xffffff, 0.8);
+        light.position.set(-5, 5, 7);
+        scene.add(light);
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+
+        camera.position.z = 2;
+
+        const originalPositions = geometry.attributes.position.array.slice();
+        const velocities = new Float32Array(geometry.attributes.position.array.length);
+        const forces = new Float32Array(geometry.attributes.position.array.length);
+        let mousePosition = new THREE.Vector2();
+        let raycaster = new THREE.Raycaster();
+        let intersectionPoint = new THREE.Vector3();
+        let dragRadius = 0.3;
+
+        const SPRING_CONSTANT = 0.05;
+        const DAMPING = 0.9;
+        const MASS = 10.0;
+        const FORCE_MULTIPLIER = 0.05;
+
+        function updateMousePosition(event) {
+            mousePosition.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mousePosition.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        }
+
+        document.addEventListener('mousemove', updateMousePosition);
+
+        function updatePhysics() {
+            const positions = geometry.attributes.position.array;
+            forces.fill(0);
+
+            raycaster.setFromCamera(mousePosition, camera);
+            const intersection = raycaster.intersectObject(plane);
+            
+            if (intersection.length > 0) {
+                intersectionPoint.copy(intersection[0].point);
+
+                for (let i = 0; i < positions.length; i += 3) {
+                    const vertexPosition = new THREE.Vector3(
+                        positions[i],
+                        positions[i + 1],
+                        positions[i + 2]
+                    );
+
+                    const distance = vertexPosition.distanceTo(intersectionPoint);
+
+                    if (distance < dragRadius) {
+                        const force = 1 - (distance / dragRadius);
+                        const direction = vertexPosition.sub(intersectionPoint).normalize();
+                        forces[i] += direction.x * force * FORCE_MULTIPLIER;
+                        forces[i + 1] += direction.y * force * FORCE_MULTIPLIER;
+                    }
+                }
+            }
+
+            for (let i = 0; i < positions.length; i += 3) {
+                const dx = originalPositions[i] - positions[i];
+                const dy = originalPositions[i + 1] - positions[i + 1];
+                const dz = originalPositions[i + 2] - positions[i + 2];
+
+                forces[i] += dx * SPRING_CONSTANT;
+                forces[i + 1] += dy * SPRING_CONSTANT;
+                forces[i + 2] += dz * SPRING_CONSTANT;
+
+                velocities[i] = velocities[i] * DAMPING + forces[i] / MASS;
+                velocities[i + 1] = velocities[i + 1] * DAMPING + forces[i + 1] / MASS;
+
+                positions[i] += velocities[i];
+                positions[i + 1] += velocities[i + 1];
+            }
+
+            geometry.attributes.position.needsUpdate = true;
+            geometry.computeVertexNormals();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            updatePhysics();
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        window.addEventListener('resize', onWindowResize);
+        onWindowResize();
+        animate();
+    </script>
+</body>
+</html>

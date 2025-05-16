@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: linear-gradient(135deg, #ff66b3, #ff99cc);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border-radius: 20px;
+            box-shadow: 0 0 30px rgba(255, 102, 179, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="glCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('glCanvas');
+        const gl = canvas.getContext('webgl');
+        
+        // Mouse position
+        let mousePos = [0.5, 0.5];
+        
+        // Handle mouse movement
+        document.addEventListener('mousemove', (e) => {
+            mousePos[0] = e.clientX / window.innerWidth;
+            mousePos[1] = 1.0 - e.clientY / window.innerHeight;
+        });
+
+        // Vertex shader
+        const vsSource = `
+            attribute vec4 aVertexPosition;
+            varying vec2 vUv;
+            void main() {
+                gl_Position = aVertexPosition;
+                vUv = aVertexPosition.xy * 0.5 + 0.5;
+            }
+        `;
+
+        // Fragment shader
+        const fsSource = `
+            precision highp float;
+            varying vec2 vUv;
+            uniform vec2 uMouse;
+            uniform float uTime;
+
+            float noise(vec2 p) {
+                return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+            }
+
+            void main() {
+                vec2 uv = vUv;
+                
+                // Create liquid metal effect
+                float t = uTime * 0.5;
+                vec2 moved = uv + vec2(
+                    cos(t + uv.x * 4.0) * 0.02 + (uMouse.x - 0.5) * 0.1,
+                    sin(t + uv.y * 4.0) * 0.02 + (uMouse.y - 0.5) * 0.1
+                );
+                
+                // Create metallic noise
+                float n = noise(moved * 10.0 + t);
+                n += noise(moved * 20.0 + t) * 0.5;
+                
+                // Create liquid metal color
+                vec3 color = mix(
+                    vec3(1.0, 0.4, 0.8),  // Light pink
+                    vec3(0.8, 0.2, 0.6),   // Dark pink
+                    n
+                );
+                
+                // Add metallic highlights
+                float highlight = pow(n, 3.0) * 0.8;
+                color += vec3(highlight);
+                
+                // Add reflection based on mouse position
+                float reflection = length(uv - uMouse) * 2.0;
+                reflection = smoothstep(0.4, 0.8, reflection);
+                color = mix(vec3(1.0), color, reflection);
+                
+                gl_FragColor = vec4(color, 1.0);
+            }
+        `;
+
+        // Initialize shaders
+        function initShaderProgram(gl, vsSource, fsSource) {
+            const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
+            const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
+
+            const shaderProgram = gl.createProgram();
+            gl.attachShader(shaderProgram, vertexShader);
+            gl.attachShader(shaderProgram, fragmentShader);
+            gl.linkProgram(shaderProgram);
+
+            return shaderProgram;
+        }
+
+        function loadShader(gl, type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            return shader;
+        }
+
+        // Initialize buffers
+        function initBuffers(gl) {
+            const positions = [
+                1.0,  1.0,
+                -1.0,  1.0,
+                1.0, -1.0,
+                -1.0, -1.0,
+            ];
+
+            const positionBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+
+            return {
+                position: positionBuffer,
+            };
+        }
+
+        // Main render function
+        function render() {
+            resize(canvas);
+            
+            const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
+            const buffers = initBuffers(gl);
+
+            const programInfo = {
+                program: shaderProgram,
+                attribLocations: {
+                    vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
+                },
+                uniformLocations: {
+                    mouse: gl.getUniformLocation(shaderProgram, 'uMouse'),
+                    time: gl.getUniformLocation(shaderProgram, 'uTime'),
+                },
+            };
+
+            let then = 0;
+            function drawScene(now) {
+                now *= 0.001;
+                const deltaTime = now - then;
+                then = now;
+
+                gl.clearColor(0.0, 0.0, 0.0, 1.0);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+
+                gl.useProgram(programInfo.program);
+                
+                // Set uniforms
+                gl.uniform2fv(programInfo.uniformLocations.mouse, mousePos);
+                gl.uniform1f(programInfo.uniformLocations.time, now);
+
+                // Set vertex position attribute
+                gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
+                gl.vertexAttribPointer(
+                    programInfo.attribLocations.vertexPosition,
+                    2,
+                    gl.FLOAT,
+                    false,
+                    0,
+                    0
+                );
+                gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition);
+
+                // Draw
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+                requestAnimationFrame(drawScene);
+            }
+
+            requestAnimationFrame(drawScene);
+        }
+
+        // Handle canvas resize
+        function resize(canvas) {
+            const displayWidth = canvas.clientWidth;
+            const displayHeight = canvas.clientHeight;
+
+            if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+                canvas.width = displayWidth;
+                canvas.height = displayHeight;
+                gl.viewport(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        // Set initial canvas size
+        canvas.width = 800;
+        canvas.height = 600;
+
+        // Start rendering
+        render();
+    </script>
+</body>
+</html>

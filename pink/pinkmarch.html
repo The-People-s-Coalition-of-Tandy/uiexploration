@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluid Shader Simulation</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Vertex shader
+        const vertexShader = `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `;
+
+        // Fragment shader
+        const fragmentShader = `
+            uniform float iTime;
+            uniform vec2 iMouse;
+            uniform vec2 iResolution;
+
+            varying vec2 vUv;
+
+            #define MAX_STEPS 100
+            #define MAX_DIST 100.0
+            #define SURF_DIST 0.001
+
+            // Fluid simulation parameters
+            #define WAVE_SPEED 1.0
+            #define WAVE_HEIGHT 0.2
+            #define MOUSE_INFLUENCE 0.3
+            #define RIPPLE_FREQUENCY 6.0
+
+            // Simple noise function
+            float hash(vec2 p) {
+                float h = dot(p, vec2(127.1, 311.7));
+                return fract(sin(h) * 43758.5453123);
+            }
+
+            // Value noise
+            float noise(vec2 p) {
+                vec2 i = floor(p);
+                vec2 f = fract(p);
+                f = f * f * (3.0 - 2.0 * f);
+                
+                float a = hash(i);
+                float b = hash(i + vec2(1.0, 0.0));
+                float c = hash(i + vec2(0.0, 1.0));
+                float d = hash(i + vec2(1.0, 1.0));
+                
+                return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+            }
+
+            // Fluid surface SDF
+            float fluidSDF(vec3 p) {
+                // Base plane at y=0
+                float plane = p.y;
+                
+                // Add waves based on position and time
+                float waves = 0.0;
+                
+                // Basic wave pattern
+                waves += sin(p.x * RIPPLE_FREQUENCY + iTime * WAVE_SPEED) * 
+                         cos(p.z * RIPPLE_FREQUENCY + iTime * WAVE_SPEED) * 
+                         WAVE_HEIGHT;
+                
+                // Add noise-based displacement
+                waves += noise(p.xz * 2.0 + iTime * 0.5) * WAVE_HEIGHT * 0.5;
+                
+                // Mouse interaction
+                vec2 mousePos = (iMouse.xy / iResolution.xy) * 2.0 - 1.0;
+                float mouseDist = length(p.xz - mousePos);
+                waves += exp(-mouseDist * 4.0) * 
+                         sin(mouseDist * 10.0 - iTime * 3.0) * 
+                         MOUSE_INFLUENCE;
+                
+                return plane - waves;
+            }
+
+            // Ray marching loop
+            float raymarch(vec3 ro, vec3 rd) {
+                float dO = 0.0;
+                
+                for(int i = 0; i < MAX_STEPS; i++) {
+                    vec3 p = ro + rd * dO;
+                    float dS = fluidSDF(p);
+                    dO += dS;
+                    if(dO > MAX_DIST || abs(dS) < SURF_DIST) break;
+                }
+                
+                return dO;
+            }
+
+            // Calculate normal using SDF gradient
+            vec3 getNormal(vec3 p) {
+                float d = fluidSDF(p);
+                vec2 e = vec2(0.001, 0);
+                vec3 n = d - vec3(
+                    fluidSDF(p - e.xyy),
+                    fluidSDF(p - e.yxy),
+                    fluidSDF(p - e.yyx)
+                );
+                return normalize(n);
+            }
+
+            void main() {
+                vec2 uv = (vUv - 0.5) * 2.0;
+                uv.x *= iResolution.x / iResolution.y;
+                
+                // Camera setup
+                vec3 ro = vec3(0, 2, -3);  // Ray origin (camera position)
+                vec3 rd = normalize(vec3(uv.x, -uv.y, 1));  // Ray direction
+                
+                float d = raymarch(ro, rd);
+                
+                vec3 color = vec3(0.1, 0.3, 0.5);  // Base water color
+                
+                if(d < MAX_DIST) {
+                    vec3 p = ro + rd * d;
+                    vec3 n = getNormal(p);
+                    
+                    // Basic lighting
+                    vec3 lightPos = vec3(2, 4, -2);
+                    vec3 l = normalize(lightPos - p);
+                    float diff = max(0.0, dot(n, l));
+                    
+                    // Fresnel effect
+                    float fresnel = pow(1.0 - max(0.0, dot(n, -rd)), 5.0);
+                    
+                    // Specular highlight
+                    vec3 r = reflect(-l, n);
+                    float spec = pow(max(0.0, dot(r, -rd)), 32.0);
+                    
+                    color = color * diff + vec3(1) * spec + vec3(0.2, 0.4, 0.6) * fresnel;
+                }
+                
+                gl_FragColor = vec4(color, 1.0);
+            }
+        `;
+
+        // Three.js setup
+        let camera, scene, renderer;
+        let shaderMaterial;
+
+        init();
+        animate();
+
+        function init() {
+            // Scene setup
+            scene = new THREE.Scene();
+            
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 2;
+
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.body.appendChild(renderer.domElement);
+
+            // Create shader material
+            shaderMaterial = new THREE.ShaderMaterial({
+                vertexShader,
+                fragmentShader,
+                uniforms: {
+                    iTime: { value: 0 },
+                    iMouse: { value: new THREE.Vector2(0.5, 0.5) },
+                    iResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) }
+                }
+            });
+
+            // Create and add mesh to scene
+            const geometry = new THREE.PlaneGeometry(2, 2);
+            const plane = new THREE.Mesh(geometry, shaderMaterial);
+            scene.add(plane);
+
+            // Event listeners
+            window.addEventListener('resize', onWindowResize, false);
+            document.addEventListener('mousemove', onMouseMove, false);
+        }
+
+        function onMouseMove(event) {
+            shaderMaterial.uniforms.iMouse.value.x = event.clientX;
+            shaderMaterial.uniforms.iMouse.value.y = window.innerHeight - event.clientY; // Flip Y coordinate
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            shaderMaterial.uniforms.iResolution.value.x = window.innerWidth;
+            shaderMaterial.uniforms.iResolution.value.y = window.innerHeight;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Update time uniform
+            shaderMaterial.uniforms.iTime.value += 0.01;
+            
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>

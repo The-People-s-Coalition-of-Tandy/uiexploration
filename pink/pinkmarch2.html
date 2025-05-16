@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluid Background</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden;
+        }
+        canvas { 
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        const vertexShader = `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `;
+
+        const fragmentShader = `
+            uniform float iTime;
+            uniform vec2 iMouse;
+            uniform vec2 iResolution;
+            uniform vec2 previousMouse;
+            
+            varying vec2 vUv;
+
+            #define RIPPLE_SPEED 2.0
+            #define VISCOSITY 1.5
+
+            // Simplified noise function
+            float noise(vec2 st) {
+                vec2 i = floor(st);
+                vec2 f = fract(st);
+                
+                // Four corners in 2D of a tile
+                float a = fract(sin(dot(i, vec2(12.9898, 78.233))) * 43758.5453123);
+                float b = fract(sin(dot(i + vec2(1.0, 0.0), vec2(12.9898, 78.233))) * 43758.5453123);
+                float c = fract(sin(dot(i + vec2(0.0, 1.0), vec2(12.9898, 78.233))) * 43758.5453123);
+                float d = fract(sin(dot(i + vec2(1.0, 1.0), vec2(12.9898, 78.233))) * 43758.5453123);
+
+                f = f * f * (3.0 - 2.0 * f);
+
+                return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+            }
+
+            void main() {
+                vec2 uv = vUv;
+                vec2 mousePos = iMouse.xy / iResolution.xy;
+                vec2 prevMousePos = previousMouse.xy / iResolution.xy;
+                
+                // Calculate mouse velocity
+                vec2 mouseVelocity = (mousePos - prevMousePos) * 10.0;
+                float mouseSpeed = length(mouseVelocity);
+                
+                // Base color
+                vec3 color = vec3(0.1, 0.2, 0.3);
+                
+                // Calculate ripple effect
+                float displacement = 0.0;
+                
+                // Mouse-based ripple
+                float mouseDist = length(uv - mousePos);
+                float mouseRipple = exp(-mouseDist * 8.0) * 
+                                  sin(mouseDist * 50.0 - iTime * RIPPLE_SPEED) * 
+                                  mouseSpeed * 0.5;
+                
+                // Add some subtle ambient movement
+                float ambient = noise(uv * 5.0 + iTime * 0.1) * 0.02;
+                
+                displacement += mouseRipple + ambient;
+                
+                // Apply displacement to create lighting effect
+                vec2 dispVec = vec2(dFdx(displacement), dFdy(displacement)) * VISCOSITY;
+                vec3 normal = normalize(vec3(-dispVec.x, -dispVec.y, 1.0));
+                
+                // Lighting
+                vec3 lightDir = normalize(vec3(0.0, 0.0, 1.0));
+                float diff = max(dot(normal, lightDir), 0.0);
+                
+                // Specular highlight
+                vec3 reflDir = reflect(-lightDir, normal);
+                vec3 viewDir = normalize(vec3(0.0, 0.0, 1.0));
+                float spec = pow(max(dot(reflDir, viewDir), 0.0), 32.0);
+                
+                // Combine lighting effects
+                color = color * (0.8 + diff * 0.2) + vec3(1.0) * spec * 0.3;
+                
+                // Add subtle color variation based on displacement
+                color += vec3(0.1, 0.2, 0.3) * displacement;
+                
+                gl_FragColor = vec4(color, 1.0);
+            }
+        `;
+
+        let camera, scene, renderer;
+        let shaderMaterial;
+        let previousMouse = new THREE.Vector2();
+
+        init();
+        animate();
+
+        function init() {
+            scene = new THREE.Scene();
+            
+            // Orthographic camera for perfect top-down view
+            camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+            camera.position.z = 1;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.body.appendChild(renderer.domElement);
+
+            shaderMaterial = new THREE.ShaderMaterial({
+                vertexShader,
+                fragmentShader,
+                uniforms: {
+                    iTime: { value: 0 },
+                    iMouse: { value: new THREE.Vector2(0.5, 0.5) },
+                    previousMouse: { value: new THREE.Vector2(0.5, 0.5) },
+                    iResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) }
+                }
+            });
+
+            // Create a plane that fills the viewport
+            const geometry = new THREE.PlaneGeometry(2, 2);
+            const plane = new THREE.Mesh(geometry, shaderMaterial);
+            scene.add(plane);
+
+            window.addEventListener('resize', onWindowResize, false);
+            document.addEventListener('mousemove', onMouseMove, false);
+            document.addEventListener('touchmove', onTouchMove, { passive: true });
+        }
+
+        function onMouseMove(event) {
+            previousMouse.copy(shaderMaterial.uniforms.iMouse.value);
+            shaderMaterial.uniforms.iMouse.value.x = event.clientX;
+            shaderMaterial.uniforms.iMouse.value.y = window.innerHeight - event.clientY;
+            shaderMaterial.uniforms.previousMouse.value.copy(previousMouse);
+        }
+
+        function onTouchMove(event) {
+            if (event.touches.length > 0) {
+                previousMouse.copy(shaderMaterial.uniforms.iMouse.value);
+                shaderMaterial.uniforms.iMouse.value.x = event.touches[0].clientX;
+                shaderMaterial.uniforms.iMouse.value.y = window.innerHeight - event.touches[0].clientY;
+                shaderMaterial.uniforms.previousMouse.value.copy(previousMouse);
+            }
+        }
+
+        function onWindowResize() {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            shaderMaterial.uniforms.iResolution.value.x = window.innerWidth;
+            shaderMaterial.uniforms.iResolution.value.y = window.innerHeight;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            shaderMaterial.uniforms.iTime.value += 0.01;
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>

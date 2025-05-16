@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Photorealistic Physarum Simulation</title>
+    <style>
+        body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #000; }
+        canvas { border: 1px solid black; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        // Set up canvas and context
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+        const width = canvas.width = 600;
+        const height = canvas.height = 600;
+
+        // Simulation parameters
+        const numAgents = 1000;
+        const sensorAngle = Math.PI / 8;
+        const moveSpeed = 2;
+        const decayRate = 0.97;
+        const diffusionRate = 0.6;
+
+        // Color configuration for realism
+        const colorMap = [
+            [0, 0, 0],
+            [20, 20, 50],
+            [0, 50, 100],
+            [50, 200, 150],
+            [255, 230, 60],
+            [255, 80, 20]
+        ];
+
+        // Trail map to store pheromone intensities
+        const trailMap = new Float32Array(width * height);
+
+        // Agent class
+        class Agent {
+            constructor(x, y, angle) {
+                this.x = x;
+                this.y = y;
+                this.angle = angle;
+                this.hue = Math.random() * 360; // Random hue for color diversity
+            }
+
+            // Update agent's position and direction
+            update() {
+                // Sensor directions
+                const front = this.sample(this.x + Math.cos(this.angle) * 10, this.y + Math.sin(this.angle) * 10);
+                const left = this.sample(this.x + Math.cos(this.angle - sensorAngle) * 10, this.y + Math.sin(this.angle - sensorAngle) * 10);
+                const right = this.sample(this.x + Math.cos(this.angle + sensorAngle) * 10, this.y + Math.sin(this.angle + sensorAngle) * 10);
+
+                // Adjust direction based on pheromone concentration
+                if (front > left && front > right) {
+                    // Keep moving forward
+                } else if (left > right) {
+                    this.angle -= sensorAngle;
+                } else if (right > left) {
+                    this.angle += sensorAngle;
+                } else {
+                    // Random perturbation
+                    this.angle += (Math.random() - 0.5) * sensorAngle;
+                }
+
+                // Move forward
+                this.x += Math.cos(this.angle) * moveSpeed;
+                this.y += Math.sin(this.angle) * moveSpeed;
+
+                // Keep within bounds
+                this.x = (this.x + width) % width;
+                this.y = (this.y + height) % height;
+
+                // Deposit pheromone at current position
+                const index = Math.floor(this.y) * width + Math.floor(this.x);
+                trailMap[index] = Math.min(trailMap[index] + 1, 255);
+            }
+
+            // Sample trail concentration
+            sample(x, y) {
+                const ix = Math.floor((x + width) % width);
+                const iy = Math.floor((y + height) % height);
+                return trailMap[iy * width + ix];
+            }
+        }
+
+        // Initialize agents
+        const agents = [];
+        for (let i = 0; i < numAgents; i++) {
+            agents.push(new Agent(Math.random() * width, Math.random() * height, Math.random() * Math.PI * 2));
+        }
+
+        // Main simulation loop
+        function simulate() {
+            ctx.clearRect(0, 0, width, height);
+
+            // Update agents
+            agents.forEach(agent => agent.update());
+
+            // Update trail map by diffusing and decaying trails
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const index = y * width + x;
+                    const left = trailMap[index - 1] || 0;
+                    const right = trailMap[index + 1] || 0;
+                    const up = trailMap[index - width] || 0;
+                    const down = trailMap[index + width] || 0;
+
+                    // Diffuse trails
+                    trailMap[index] += diffusionRate * (left + right + up + down - 4 * trailMap[index]);
+                    trailMap[index] *= decayRate;
+                }
+            }
+
+            // Render trail map with color gradient
+            const imageData = ctx.getImageData(0, 0, width, height);
+            for (let i = 0; i < trailMap.length; i++) {
+                const intensity = Math.min(255, trailMap[i]);
+                const color = getColorForIntensity(intensity);
+                imageData.data[i * 4 + 0] = color[0];
+                imageData.data[i * 4 + 1] = color[1];
+                imageData.data[i * 4 + 2] = color[2];
+                imageData.data[i * 4 + 3] = intensity > 0 ? 255 : 0;
+            }
+            ctx.putImageData(imageData, 0, 0);
+
+            // Repeat simulation
+            requestAnimationFrame(simulate);
+        }
+
+        // Map intensity to color
+        // Map intensity to color
+// Map intensity to color
+// Map intensity to color with stricter bounds handling
+function getColorForIntensity(intensity) {
+    // Ensure intensity stays between 0 and 255
+    intensity = Math.max(0, Math.min(255, intensity));
+
+    // Calculate the position within colorMap based on intensity
+    const maxIndex = colorMap.length - 1;
+    const scaledIndex = (intensity / 255) * maxIndex;
+    const colorIndex = Math.floor(scaledIndex);
+    const nextColorIndex = Math.min(colorIndex + 1, maxIndex); // Ensure next index is within bounds
+    const ratio = scaledIndex - colorIndex; // Ratio for blending
+
+    // Interpolate between colorMap entries
+    const r = Math.round(colorMap[colorIndex][0] * (1 - ratio) + colorMap[nextColorIndex][0] * ratio);
+    const g = Math.round(colorMap[colorIndex][1] * (1 - ratio) + colorMap[nextColorIndex][1] * ratio);
+    const b = Math.round(colorMap[colorIndex][2] * (1 - ratio) + colorMap[nextColorIndex][2] * ratio);
+
+    return [r, g, b];
+}
+
+
+        // Start simulation
+        simulate();
+    </script>
+</body>
+</html>

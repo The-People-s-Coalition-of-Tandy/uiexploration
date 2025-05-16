@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tandy Nitespace</title>
+    <link rel="stylesheet" href="./indexNew.css">
+    <link rel="stylesheet" href="./chat.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+</head>
+
+<body>
+
+    <!-- <img src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/1231630/moon2.png" alt=""> -->
+    <div class="stars"></div>
+    <!-- <div class="twinkling"></div> -->
+    <!-- <div class="clouds"></div> -->
+
+    <header>
+        <span className="text-red-500" style="color: red;">T</span>
+        <span className="text-yellow-500" style="color: yellow;">A</span>
+        <span className="text-blue-500" style="color: blue;">N</span>
+        <span className="text-purple-500" style="color: purple;">D</span>
+        <span className="text-green-500" style="color: green;">Y</span>
+        Nitespace
+    </header>
+    <div class="app-grid">
+        <div class="pretend-app">
+            Tandylinx
+            <!-- <img src="./catalog.gif"> -->
+        </div>
+
+        <div class="pretend-app">
+            tandy forum
+        </div>
+        <div class="pretend-app">
+            tandy chat
+        </div>
+        <div class="pretend-app">
+            SounClown
+        </div>
+        <div class="pretend-app">
+            digiCDs
+        </div>
+        <!-- <a href="./box.html">
+
+            <div class="pretend-app" style="background-image:url(./cube.png); background-size: cover;">
+            </div>
+        </a> -->
+        <div class="pretend-app">
+            timelocked thing
+        </div>
+        <div class="pretend-app">
+            fake tile shader
+        </div>
+        <div class="pretend-app">
+            weird shader
+        </div>
+        <div class="pretend-app">
+            weird error page
+        </div>
+        <div class="pretend-app">
+            tandynet
+        </div>
+    </div>
+
+    <div id="chat-container">
+        <div id="chat-julie" class="chatbox">
+            <div class="chatbox-header">
+                <h3>Julie</h3>
+            </div>
+            <div class="chatbox-content">
+                <div class="chatbox-message">
+                    <span class="chatbox-message__sender">Julie:</span>
+                    <span class="chatbox-message__content">Hey, how are you?</span>
+                </div>
+                <div class="chatbox-message">
+                    <span class="chatbox-message__sender">You:</span>
+                    <span class="chatbox-message__content">I'm good, thanks! How about you?</span>
+                </div>
+                <div class="chatbox-message">
+                    <span class="chatbox-message__sender">Julie:</span>
+                    <span class="chatbox-message__content">I'm doing great, thanks for asking!</span>
+                </div>
+            </div>
+            <div class="chatbox-footer">
+                <input type="text" placeholder="Type a message...">
+                <button>Send</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="user-list-container" class="">
+        <button id="toggle-button">Hide Online Users</button>
+        <div id="user-list-content">
+            <h3>Online Users</h3>
+            <ul id="online-users">
+                <!-- Online users will be injected here -->
+            </ul>
+            <h4>Recently Online Users</h4>
+            <ul id="recent-users">
+                <!-- Recently online users will be injected here -->
+            </ul>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const toggleButton = document.getElementById('toggle-button');
+            const container = document.getElementById('user-list-container');
+
+            // Dummy data for users
+            const onlineUsers = ['jestereliceX', 'passwordtest', 'umru'];
+            const recentUsers = ['Dave (2 min ago)', 'Eve (10 min ago)', 'Frank (30 min ago)'];
+
+            // Populate the online users list
+            const onlineUsersList = document.getElementById('online-users');
+            onlineUsers.forEach(user => {
+                const li = document.createElement('li');
+                const dot = document.createElement('span');
+                dot.classList.add('dot', 'green');
+
+                const username = document.createElement('span');
+                username.textContent = user;
+                li.appendChild(dot);
+                li.appendChild(username);
+                onlineUsersList.appendChild(li);
+            });
+
+            // Populate the recently online users list
+            const recentUsersList = document.getElementById('recent-users');
+            recentUsers.forEach(user => {
+                const li = document.createElement('li');
+                // const statusDot = document.createElement('i');
+                // statusDot.classList.add('pulse');
+                // statusDot.classList.add('green');
+
+                // li.appendChild(document.createElement('i'));;
+                const dot = document.createElement('span');
+                dot.classList.add('dot');
+
+                const username = document.createElement('span');
+                username.textContent = user;
+                li.appendChild(dot);
+                li.appendChild(username);
+
+                recentUsersList.appendChild(li);
+            });
+
+            // Toggle visibility of the user list
+            toggleButton.addEventListener('click', () => {
+                if (container.classList.contains('collapsed')) {
+                    container.classList.remove('collapsed');
+                    toggleButton.textContent = 'Hide Online Users';
+                } else {
+                    container.classList.add('collapsed');
+                    toggleButton.textContent = 'Show Online Users';
+                }
+            });
+        });
+    </script>
+<script>
+    const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x000000, 1);
+document.body.appendChild(renderer.domElement);
+
+// Create glitter sprite texture
+function createGlitterTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    
+    // Create radial gradient for sparkle effect
+    const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    gradient.addColorStop(0.1, 'rgba(255, 255, 255, 0.8)');
+    gradient.addColorStop(0.25, 'rgba(255, 200, 200, 0.3)');
+    gradient.addColorStop(0.5, 'rgba(200, 200, 255, 0.1)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    
+    // Draw main glow
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 64, 64);
+    
+    // Add cross sparkle
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(32, 0);
+    ctx.lineTo(32, 64);
+    ctx.moveTo(0, 32);
+    ctx.lineTo(64, 32);
+    ctx.stroke();
+    
+    return canvas;
+}
+
+// Enhanced Particle System for glitter
+class GlitterSystem {
+    constructor() {
+        this.particles = [];
+        const glitterTexture = new THREE.CanvasTexture(createGlitterTexture());
+        
+        const geometry = new THREE.BufferGeometry();
+        const material = new THREE.PointsMaterial({
+            size: 0.05,
+            map: glitterTexture,
+            transparent: true,
+            opacity: 1,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            vertexColors: true
+        });
+        
+        this.points = new THREE.Points(geometry, material);
+        scene.add(this.points);
+        
+        // Pre-allocate arrays for better performance
+        this.maxParticles = 1000;
+        this.positions = new Float32Array(this.maxParticles * 3);
+        this.colors = new Float32Array(this.maxParticles * 3);
+        this.sizes = new Float32Array(this.maxParticles);
+    }
+
+    emit(position, count) {
+        for (let i = 0; i < count && this.particles.length < this.maxParticles; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 0.02 + Math.random() * 0.08;
+            
+            this.particles.push({
+                position: position.clone(),
+                velocity: new THREE.Vector3(
+                    Math.cos(angle) * speed,
+                    Math.sin(angle) * speed,
+                    (Math.random() - 0.5) * 0.1
+                ),
+                rotation: Math.random() * Math.PI * 2,
+                rotationSpeed: (Math.random() - 0.5) * 0.2,
+                life: 1.0,
+                initialSize: 0.03 + Math.random() * 0.04,
+                hue: Math.random() * 0.2 // Slight color variation
+            });
+        }
+    }
+
+    update() {
+        this.particles = this.particles.filter(p => p.life > 0);
+        
+        // Update all particles
+        this.particles.forEach((particle, i) => {
+            // Update particle physics
+            particle.position.add(particle.velocity);
+            particle.velocity.multiplyScalar(0.98); // Air resistance
+            particle.rotation += particle.rotationSpeed;
+            particle.life -= 0.015;
+            
+            // Calculate sparkle effect
+            const sparkle = (Math.sin(particle.rotation * 5) * 0.5 + 0.5) * particle.life;
+            
+            // Position
+            this.positions[i * 3] = particle.position.x;
+            this.positions[i * 3 + 1] = particle.position.y;
+            this.positions[i * 3 + 2] = particle.position.z;
+            
+            // Color with rainbow sparkle
+            const hue = (particle.hue + sparkle * 0.1) % 1;
+            const color = new THREE.Color().setHSL(hue, 0.5, 0.5 + sparkle * 0.5);
+            this.colors[i * 3] = color.r;
+            this.colors[i * 3 + 1] = color.g;
+            this.colors[i * 3 + 2] = color.b;
+            
+            // Size with sparkle variation
+            this.sizes[i] = particle.initialSize * (0.5 + sparkle * 0.5);
+        });
+
+        // Update geometry
+        this.points.geometry.setAttribute('position', 
+            new THREE.BufferAttribute(this.positions.slice(0, this.particles.length * 3), 3));
+        this.points.geometry.setAttribute('color',
+            new THREE.BufferAttribute(this.colors.slice(0, this.particles.length * 3), 3));
+        this.points.geometry.setAttribute('size',
+            new THREE.BufferAttribute(this.sizes.slice(0, this.particles.length), 1));
+    }
+}
+
+// Create plane
+const planeGeometry = new THREE.PlaneGeometry(5, 4, 200, 200);
+const planeMaterial = new THREE.MeshPhongMaterial({
+    color: 0x000033,
+    specular: 0x444444,
+    shininess: 30,
+    flatShading: false,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.9
+});
+
+const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+scene.add(plane);
+
+// Enhanced lighting for better glitter effect
+const light = new THREE.DirectionalLight(0xffffff, 1.2);
+light.position.set(-5, 5, 7);
+scene.add(light);
+
+const light2 = new THREE.DirectionalLight(0xffffff, 0.8);
+light2.position.set(5, -5, 7);
+scene.add(light2);
+
+const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+scene.add(ambientLight);
+
+camera.position.z = 2;
+
+// Physics simulation variables
+const originalPositions = planeGeometry.attributes.position.array.slice();
+const velocities = new Float32Array(planeGeometry.attributes.position.array.length);
+const forces = new Float32Array(planeGeometry.attributes.position.array.length);
+let mousePosition = new THREE.Vector2();
+let raycaster = new THREE.Raycaster();
+let intersectionPoint = new THREE.Vector3();
+let dragRadius = 0.4;
+
+// Initialize glitter system
+const glitterSystem = new GlitterSystem();
+
+// Physics constants
+const SPRING_CONSTANT = 0.1;
+const DAMPING = 0.97;
+const MASS = 20.90;
+const FORCE_MULTIPLIER = 0.15;
+
+// Create normal buffer
+const normalBuffer = new THREE.BufferAttribute(
+    new Float32Array(planeGeometry.attributes.normal.array.length),
+    3
+);
+
+function updateMousePosition(event) {
+    mousePosition.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mousePosition.y = -(event.clientY / window.innerHeight) * 2 + 1;
+}
+
+document.addEventListener('mousemove', updateMousePosition);
+document.addEventListener('touchmove', (e) => {
+    const touch = e.touches[0];
+    updateMousePosition({
+        clientX: touch.clientX,
+        clientY: touch.clientY
+    });
+}, { passive: true });
+
+// Your existing computeCustomNormals function
+function computeCustomNormals() {
+    // ... (keep existing normal computation code)
+}
+
+function updatePhysics() {
+    const positions = planeGeometry.attributes.position.array;
+    forces.fill(0);
+
+    raycaster.setFromCamera(mousePosition, camera);
+    const intersection = raycaster.intersectObject(plane);
+    
+    if (intersection.length > 0) {
+        intersectionPoint.copy(intersection[0].point);
+        
+        // Emit more glitter particles at intersection
+        glitterSystem.emit(intersectionPoint, 15);
+        
+        for (let i = 0; i < positions.length; i += 3) {
+            const vertexPosition = new THREE.Vector3(
+                positions[i],
+                positions[i + 1],
+                positions[i + 2]
+            );
+            
+            const distance = vertexPosition.distanceTo(intersectionPoint);
+            
+            if (distance < dragRadius) {
+                const force = 1 - (distance / dragRadius);
+                const direction = vertexPosition.sub(intersectionPoint).normalize();
+                forces[i] += direction.x * force * FORCE_MULTIPLIER;
+                forces[i + 1] += direction.y * force * FORCE_MULTIPLIER;
+                forces[i + 2] += direction.z * force * FORCE_MULTIPLIER;
+            }
+        }
+    }
+
+    // Update physics
+    for (let i = 0; i < positions.length; i += 3) {
+        const dx = originalPositions[i] - positions[i];
+        const dy = originalPositions[i + 1] - positions[i + 1];
+        const dz = originalPositions[i + 2] - positions[i + 2];
+        
+        forces[i] += dx * SPRING_CONSTANT;
+        forces[i + 1] += dy * SPRING_CONSTANT;
+        forces[i + 2] += dz * SPRING_CONSTANT;
+        
+        velocities[i] = velocities[i] * DAMPING + forces[i] / MASS;
+        velocities[i + 1] = velocities[i + 1] * DAMPING + forces[i + 1] / MASS;
+        velocities[i + 2] = velocities[i + 2] * DAMPING + forces[i + 2] / MASS;
+        
+        positions[i] += velocities[i];
+        positions[i + 1] += velocities[i + 1];
+        positions[i + 2] += velocities[i + 2];
+    }
+
+    planeGeometry.attributes.position.needsUpdate = true;
+    computeCustomNormals();
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    updatePhysics();
+    glitterSystem.update();
+    renderer.render(scene, camera);
+}
+
+function onWindowResize() {
+    const aspect = window.innerWidth / window.innerHeight;
+    camera.aspect = aspect;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    
+    const distance = camera.position.z;
+    const vFov = camera.fov * Math.PI / 180;
+    const height = 2 * Math.tan(vFov / 2) * distance;
+    const width = height * aspect;
+    
+    plane.scale.set(width / 4 * 1.2, height / 3 * 1.2, 1);
+}
+
+window.addEventListener('resize', onWindowResize);
+onWindowResize();
+animate();
+</script>
+</body>
+
+</html>
+</script>
+</body>
+
+</html>

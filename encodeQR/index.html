@@ -1,0 +1,35 @@
+<canvas id="encodeCanvas" width="300" height="300"></canvas>
+<script>
+const encodeBase3ToCanvas = (canvasId, data) => {
+    const canvas = document.getElementById(canvasId);
+    const ctx = canvas.getContext('2d');
+
+    const squareSize = 10; // Size of each square
+    const cols = Math.ceil(canvas.width / squareSize);
+    const rows = Math.ceil(canvas.height / squareSize);
+
+    // Define base-3 mapping to RGB
+    const tritToColor = [0, 127, 255];
+
+    // Ensure data fits into the canvas
+    const paddedData = new Uint8Array(cols * rows * 3); // R, G, B for each square
+    paddedData.set(data);
+
+    // Draw the grid
+    let dataIndex = 0;
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            const r = tritToColor[paddedData[dataIndex++] % 3];
+            const g = tritToColor[paddedData[dataIndex++] % 3];
+            const b = tritToColor[paddedData[dataIndex++] % 3];
+
+            ctx.fillStyle = `rgb(${r},${g},${b})`;
+            ctx.fillRect(x * squareSize, y * squareSize, squareSize, squareSize);
+        }
+    }
+};
+
+// Example usage: Encode base-3 data
+const base3Data = [0, 1, 2, 2, 1, 0, 0, 1, 1, 2, 2, 0];
+encodeBase3ToCanvas('encodeCanvas', base3Data);
+</script>

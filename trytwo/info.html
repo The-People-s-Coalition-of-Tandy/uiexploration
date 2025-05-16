@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NiteSpace Header</title>
+    <link rel="stylesheet" href="info.css">
+</head>
+
+<body>
+    <header>
+        <div class="header-container">
+            <div class="left-section">
+                <h1 className="text-6xl font-bold tracking-tight mb-1 animate-pulse">
+                    <span className="text-red-500" style="color: red;">T</span>
+                    <span className="text-yellow-500" style="color: yellow;">A</span>
+                    <span className="text-blue-500" style="color: blue;">N</span>
+                    <span className="text-purple-500" style="color: purple;">D</span>
+                    <span className="text-green-500" style="color: green;">Y</span>
+                </h1>
+                <h1>NiteSpace</h1>
+            </div>
+
+            <div class="right-section">
+                <div class="ws-status">
+                    <span class="tooltip" data-tooltip="WebSocket Status">
+                        WS: <span id="ws-status">Connecting...</span>
+                    </span>
+                </div>
+
+                <div class="ping">
+                    <span class="tooltip" data-tooltip="Ping">
+                        Ping: <span id="ping-time">- ms</span>
+                    </span>
+                </div>
+
+                <div class="clients">
+                    <span class="tooltip" data-tooltip="Connected Clients">
+                        Clients: <span id="client-count">-</span>
+                    </span>
+                </div>
+
+                <div class="ip-address">
+                    <span class="tooltip" data-tooltip="Your IP">
+                        IP: <span id="ip-address">-</span>
+                    </span>
+                </div>
+
+                <div class="error-count">
+                    <span class="tooltip" data-tooltip="Recent Errors">
+                        Errors: <span id="error-count">0</span>
+                    </span>
+                </div>
+
+                <div class="more-info">
+                    <button id="toggle-info">More Info</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="extra-info collapsed" id="extra-info">
+            <ul>
+                <li>Connection ID: <span id="connection-id">-</span></li>
+                <li>Connection Time: <span id="connection-time">-</span></li>
+                <li>Device Info: <span id="device-info">-</span></li>
+                <li>User Agent: <span id="user-agent">-</span></li>
+                <li>Retry Attempts: <span id="retry-attempts">0</span></li>
+                <li>Messages Sent: <span id="messages-sent">0</span></li>
+                <li>Messages Received: <span id="messages-received">0</span></li>
+            </ul>
+        </div>
+    </header>
+
+    <script src="info.js"></script>
+</body>
+
+</html>

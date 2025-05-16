@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js Simulation</title>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+  
+    </script>
+    <script type="importmap">
+        {
+        "imports": {
+            "three": "https://unpkg.com/three@0.158/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.158/examples/jsm/"
+        }
+    }
+    </script>
+    <script type="module">
+        import SlimeSimulation from './scripts/ferro.js';
+
+        new SlimeSimulation('canvas');
+    </script>
+</body>
+</html>

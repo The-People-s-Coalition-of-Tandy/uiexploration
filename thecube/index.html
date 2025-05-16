@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js Boilerplate</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // Add OrbitControls
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // Add lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(5, 5, 5);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 1024;
+        directionalLight.shadow.mapSize.height = 1024;
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 50;
+        directionalLight.shadow.camera.left = -10;
+        directionalLight.shadow.camera.right = 10;
+        directionalLight.shadow.camera.top = 10;
+        directionalLight.shadow.camera.bottom = -10;
+        scene.add(directionalLight);
+
+        // Load displacement texture
+        const textureLoader = new THREE.TextureLoader();
+        const displacementMap = textureLoader.load('./displace.png');
+        displacementMap.wrapS = displacementMap.wrapT = THREE.RepeatWrapping;
+
+        // Create a cube with displacement
+        const geometry = new THREE.BoxGeometry(1, 1, 1, 32, 32, 32);
+        const material = new THREE.MeshStandardMaterial({ 
+            color: 0xaaaaaa,
+            displacementMap: displacementMap,
+            displacementScale: 0.01,
+            normalMap: displacementMap,
+            bumpMap: displacementMap,
+            bumpScale: 0.02
+        });
+        const cube = new THREE.Mesh(geometry, material);
+        cube.castShadow = true;
+        cube.receiveShadow = true;
+        scene.add(cube);
+
+        // Add ground plane with displacement
+        const groundGeometry = new THREE.PlaneGeometry(10, 10, 128, 128);
+        const groundMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x808080,
+            displacementMap: displacementMap,
+            displacementScale: 0.05,
+            normalMap: displacementMap,
+            bumpMap: displacementMap,
+            bumpScale: 0.03
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -0.5;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        const planeGeometry = new THREE.PlaneGeometry(0.5 * (16/9), 0.5);
+        const video = document.createElement('video');
+        video.src = './Untitled.webm';
+        video.loop = true;
+        video.muted = true;
+        video.play();
+
+        const planeTexture = new THREE.VideoTexture(video);
+        planeTexture.minFilter = THREE.LinearFilter;
+        planeTexture.magFilter = THREE.LinearFilter;
+
+        // Create a material that uses the video texture with transparency
+        const videoMaterial = new THREE.MeshStandardMaterial({
+            map: planeTexture,
+            transparent: true,
+            side: THREE.DoubleSide,
+            roughness: 0.5,
+            metalness: 0.1
+        });
+
+        const plane = new THREE.Mesh(planeGeometry, videoMaterial);
+        scene.add(plane);
+        plane.position.set(0, 0.75, 0);
+        plane.receiveShadow = true;
+
+        camera.position.set(3, 3, 3);
+        camera.lookAt(0, 0, 0);
+
+        // Handle window resize
+        window.addEventListener('resize', onWindowResize, false);
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update(); // Update controls in animation loop
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>

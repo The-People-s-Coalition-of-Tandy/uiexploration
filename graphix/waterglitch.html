@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stretchy Background</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden;
+            background: #2980b9;
+        }
+        canvas { 
+            display: block; 
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x2980b9);
+        
+        const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ 
+            antialias: true,
+            logarithmicDepthBuffer: true  // Try to help with z-fighting
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Create a more sophisticated mesh structure
+        function createRefinedGeometry(width, height, segmentsX, segmentsY) {
+            const geometry = new THREE.BufferGeometry();
+            const vertices = [];
+            const indices = [];
+            
+            // Create vertices with varying density
+            for (let y = 0; y <= segmentsY; y++) {
+                const yNorm = y / segmentsY;
+                // More segments toward the center
+                const xSegs = Math.floor(segmentsX * (1 + 0.5 * Math.sin(yNorm * Math.PI)));
+                
+                for (let x = 0; x <= xSegs; x++) {
+                    const xNorm = x / xSegs;
+                    
+                    // Add some initial displacement to break symmetry
+                    const xPos = (xNorm - 0.5) * width + (Math.random() - 0.5) * 0.001;
+                    const yPos = (yNorm - 0.5) * height + (Math.random() - 0.5) * 0.001;
+                    const zPos = (Math.random() - 0.5) * 0.001;
+                    
+                    vertices.push(xPos, yPos, zPos);
+                }
+            }
+            
+            // Create triangles with careful orientation
+            for (let y = 0; y < segmentsY; y++) {
+                const rowStart = y * (segmentsX + 1);
+                const nextRowStart = (y + 1) * (segmentsX + 1);
+                
+                for (let x = 0; x < segmentsX; x++) {
+                    // Create two triangles with consistent winding order
+                    indices.push(
+                        rowStart + x,
+                        nextRowStart + x,
+                        rowStart + x + 1,
+                        
+                        rowStart + x + 1,
+                        nextRowStart + x,
+                        nextRowStart + x + 1
+                    );
+                }
+            }
+            
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            geometry.setIndex(indices);
+            geometry.computeVertexNormals();
+            
+            return geometry;
+        }
+
+        const geometry = createRefinedGeometry(8, 6, 100, 75);
+        const material = new THREE.MeshPhongMaterial({
+            color: 0x2980b9,
+            specular: 0x444444,
+            shininess: 30,
+            side: THREE.FrontSide,
+            flatShading: false
+        });
+
+        const plane = new THREE.Mesh(geometry, material);
+        scene.add(plane);
+
+        camera.position.z = 2.5;
+
+        const light = new THREE.DirectionalLight(0xffffff, 0.8);
+        light.position.set(-5, 5, 7);
+        scene.add(light);
+        const light2 = new THREE.DirectionalLight(0xffffff, 0.5);
+        light2.position.set(5, -5, 7);
+        scene.add(light2);
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+
+        const originalPositions = geometry.attributes.position.array.slice();
+        const velocities = new Float32Array(geometry.attributes.position.array.length);
+        const forces = new Float32Array(geometry.attributes.position.array.length);
+        let mousePosition = new THREE.Vector2();
+        let raycaster = new THREE.Raycaster();
+        let intersectionPoint = new THREE.Vector3();
+        let dragRadius = 0.4;
+
+        // More stable physics parameters
+        const SPRING_CONSTANT = 0.15;
+        const DAMPING = 0.95;
+        const MASS = 1.0;
+        const FORCE_MULTIPLIER = 0.12;
+
+        function updateMousePosition(event) {
+            mousePosition.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mousePosition.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        }
+
+        document.addEventListener('mousemove', updateMousePosition);
+        document.addEventListener('touchmove', (e) => {
+            const touch = e.touches[0];
+            updateMousePosition({
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+        }, { passive: true });
+
+        function updatePhysics() {
+            const positions = geometry.attributes.position.array;
+            forces.fill(0);
+
+            raycaster.setFromCamera(mousePosition, camera);
+            const intersection = raycaster.intersectObject(plane);
+            
+            if (intersection.length > 0) {
+                intersectionPoint.copy(intersection[0].point);
+                
+                // Use a radial force field for more stable deformation
+                for (let i = 0; i < positions.length; i += 3) {
+                    const vertexPosition = new THREE.Vector3(
+                        positions[i],
+                        positions[i + 1],
+                        positions[i + 2]
+                    );
+                    
+                    const distance = vertexPosition.distanceTo(intersectionPoint);
+                    
+                    if (distance < dragRadius) {
+                        const force = Math.pow(1 - (distance / dragRadius), 2);
+                        const direction = new THREE.Vector3()
+                            .subVectors(vertexPosition, intersectionPoint)
+                            .normalize();
+                        
+                        forces[i] += direction.x * force * FORCE_MULTIPLIER;
+                        forces[i + 1] += direction.y * force * FORCE_MULTIPLIER;
+                        forces[i + 2] += direction.z * force * FORCE_MULTIPLIER;
+                    }
+                }
+            }
+
+            // Update positions with smoother constraints
+            for (let i = 0; i < positions.length; i += 3) {
+                // Spring force with smooth falloff
+                const dx = originalPositions[i] - positions[i];
+                const dy = originalPositions[i + 1] - positions[i + 1];
+                const dz = originalPositions[i + 2] - positions[i + 2];
+                
+                const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                const springScale = Math.min(1, dist / 0.5);
+                
+                forces[i] += dx * SPRING_CONSTANT * springScale;
+                forces[i + 1] += dy * SPRING_CONSTANT * springScale;
+                forces[i + 2] += dz * SPRING_CONSTANT * springScale;
+                
+                velocities[i] = velocities[i] * DAMPING + forces[i] / MASS;
+                velocities[i + 1] = velocities[i + 1] * DAMPING + forces[i + 1] / MASS;
+                velocities[i + 2] = velocities[i + 2] * DAMPING + forces[i + 2] / MASS;
+                
+                positions[i] += velocities[i];
+                positions[i + 1] += velocities[i + 1];
+                positions[i + 2] += velocities[i + 2];
+            }
+
+            geometry.attributes.position.needsUpdate = true;
+            geometry.computeVertexNormals();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            updatePhysics();
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            const aspect = window.innerWidth / window.innerHeight;
+            camera.aspect = aspect;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            
+            const distance = camera.position.z;
+            const vFov = camera.fov * Math.PI / 180;
+            const height = 2 * Math.tan(vFov / 2) * distance;
+            const width = height * aspect;
+            
+            plane.scale.set(width / 4 * 1.5, height / 3 * 1.5, 1);
+        }
+
+        window.addEventListener('resize', onWindowResize);
+        onWindowResize();
+
+        // Pre-warm with random forces
+        for (let i = 0; i < 120; i++) {
+            mousePosition.set(Math.random() * 2 - 1, Math.random() * 2 - 1);
+            updatePhysics();
+        }
+
+        animate();
+    </script>
+</body>
+</html>

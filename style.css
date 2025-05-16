@@ -1,0 +1,14 @@
+button {
+    background-color: #000;
+    color: #fff;
+}
+
+.button-emboss {
+    width: 100px;
+    height: 100px;
+}
+
+.logo {
+    width: 200px;
+    /* height: 300px; */
+}

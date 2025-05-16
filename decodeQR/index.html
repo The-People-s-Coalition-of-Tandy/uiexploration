@@ -1,0 +1,36 @@
+<canvas id="decodeCanvas" width="300" height="300"></canvas>
+<script>
+const decodeBase3FromCanvas = (canvasId, squareSize) => {
+    const canvas = document.getElementById(canvasId);
+    const ctx = canvas.getContext('2d');
+    const cols = Math.ceil(canvas.width / squareSize);
+    const rows = Math.ceil(canvas.height / squareSize);
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = [];
+
+    // Define thresholds for base-3 decoding
+    const colorToTrit = (value) => {
+        if (value < 64) return 0;
+        if (value < 191) return 1;
+        return 2;
+    };
+
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            const baseIndex = (y * canvas.width + x * squareSize) * 4; // RGBA
+            const rTrit = colorToTrit(imageData.data[baseIndex]);
+            const gTrit = colorToTrit(imageData.data[baseIndex + 1]);
+            const bTrit = colorToTrit(imageData.data[baseIndex + 2]);
+
+            data.push(rTrit, gTrit, bTrit);
+        }
+    }
+
+    return data;
+};
+
+// Example usage: Decode data from the canvas
+const decodedBase3Data = decodeBase3FromCanvas('decodeCanvas', 10);
+console.log('Decoded Base-3 Data:', decodedBase3Data);
+</script>

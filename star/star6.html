@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Dreams</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #000;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.8;
+        }
+
+        .content {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2rem;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 2;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            background: linear-gradient(45deg, #ff3366, #ff6b6b, #4ecdc4, #45b7d1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-links a {
+            color: #fff;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: #4ecdc4;
+        }
+
+        .hero {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(45deg, #ff3366, #ff6b6b, #4ecdc4, #45b7d1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.5rem;
+            color: #ccc;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            padding: 4rem 2rem;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 1rem;
+            padding: 2rem;
+            transition: transform 0.3s ease;
+            cursor: pointer;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card h3 {
+            color: #4ecdc4;
+            margin-bottom: 1rem;
+        }
+
+        .card p {
+            color: #ccc;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .hero p {
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    
+    <nav>
+        <div class="logo">DigitalDreams</div>
+        <div class="nav-links">
+            <a href="#home">Home</a>
+            <a href="#about">About</a>
+            <a href="#projects">Projects</a>
+            <a href="#contact">Contact</a>
+        </div>
+    </nav>
+
+    <main class="content">
+        <section class="hero">
+            <div>
+                <h1>Create Digital Magic</h1>
+                <p>Experience the future of web design with our interactive glitter effects and stunning animations.</p>
+            </div>
+        </section>
+
+        <section class="cards">
+            <div class="card">
+                <h3>Interactive Design</h3>
+                <p>Create stunning interactive experiences that captivate your audience and bring your ideas to life.</p>
+            </div>
+            <div class="card">
+                <h3>Performance First</h3>
+                <p>Optimized for smooth performance across all devices with WebGL and custom shaders.</p>
+            </div>
+            <div class="card">
+                <h3>Modern Tech</h3>
+                <p>Built with cutting-edge technologies to ensure your website stands out from the crowd.</p>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Fixed vertex shader without position redefinition
+        const particleVertexShader = `
+            uniform float time;
+            attribute vec3 offset;
+            attribute vec3 velocity;
+            attribute float life;
+            attribute float size;
+            
+            varying float vLife;
+            
+            void main() {
+                vLife = life;
+                
+                // Apply velocity and gravity
+                vec3 pos = position + offset;
+                pos += velocity * time;
+                pos.y -= 0.5 * 9.8 * time * time; // Gravity
+                
+                vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+                gl_Position = projectionMatrix * mvPosition;
+                
+                // Size attenuation
+                gl_PointSize = size * (300.0 / length(mvPosition.xyz));
+            }
+        `;
+
+        const particleFragmentShader = `
+            uniform vec3 color;
+            varying float vLife;
+            
+            void main() {
+                // Create circular particle
+                vec2 center = gl_PointCoord - vec2(0.5);
+                float dist = length(center);
+                
+                // Smooth circle with fade
+                float alpha = smoothstep(0.5, 0.2, dist) * vLife;
+                
+                // Add sparkle effect
+                float sparkle = sin(vLife * 20.0) * 0.5 + 0.5;
+                
+                gl_FragColor = vec4(color * (1.0 + sparkle * 0.5), alpha);
+            }
+        `;
+
+        class ImprovedGlitterSystem {
+            constructor(count = 5000) {
+                this.count = count;
+                this.currentIndex = 0;
+
+                // Create geometry for points
+                const geometry = new THREE.BufferGeometry();
+                
+                // Create arrays for attributes
+                const positions = new Float32Array(count * 3);
+                const offsets = new Float32Array(count * 3);
+                const velocities = new Float32Array(count * 3);
+                const lives = new Float32Array(count);
+                const sizes = new Float32Array(count);
+
+                // Initialize arrays
+                for (let i = 0; i < count; i++) {
+                    positions[i * 3] = 0;
+                    positions[i * 3 + 1] = 0;
+                    positions[i * 3 + 2] = 0;
+                    lives[i] = 0;
+                }
+
+                // Set attributes
+                geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                geometry.setAttribute('offset', new THREE.BufferAttribute(offsets, 3));
+                geometry.setAttribute('velocity', new THREE.BufferAttribute(velocities, 3));
+                geometry.setAttribute('life', new THREE.BufferAttribute(lives, 1));
+                geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+                // Create materials with different colors
+                const colors = [
+                    0xFFD700, // Gold
+                    0xC0C0C0, // Silver
+                    0xFF69B4, // Pink
+                    0x4169E1, // Blue
+                    0xFFFFFF  // White
+                ];
+
+                this.particles = colors.map(color => {
+                    const material = new THREE.ShaderMaterial({
+                        uniforms: {
+                            time: { value: 0 },
+                            color: { value: new THREE.Color(color) }
+                        },
+                        vertexShader: particleVertexShader,
+                        fragmentShader: particleFragmentShader,
+                        transparent: true,
+                        blending: THREE.AdditiveBlending,
+                        depthWrite: false
+                    });
+
+                    return new THREE.Points(geometry, material);
+                });
+            }
+
+            emit(position, count) {
+                const positionAttribute = this.particles[0].geometry.getAttribute('position');
+                const offsetAttribute = this.particles[0].geometry.getAttribute('offset');
+                const velocityAttribute = this.particles[0].geometry.getAttribute('velocity');
+                const lifeAttribute = this.particles[0].geometry.getAttribute('life');
+                const sizeAttribute = this.particles[0].geometry.getAttribute('size');
+
+                for (let i = 0; i < count; i++) {
+                    const index = (this.currentIndex + i) % this.count;
+                    
+                    // Reset position
+                    positionAttribute.array[index * 3] = position.x;
+                    positionAttribute.array[index * 3 + 1] = position.y;
+                    positionAttribute.array[index * 3 + 2] = position.z;
+
+                    // Set random offset
+                    offsetAttribute.array[index * 3] = (Math.random() - 0.5) * 0.1;
+                    offsetAttribute.array[index * 3 + 1] = (Math.random() - 0.5) * 0.1;
+                    offsetAttribute.array[index * 3 + 2] = (Math.random() - 0.5) * 0.1;
+
+                    // Random velocity
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 0.01 + Math.random() * 0.03;
+                    velocityAttribute.array[index * 3] = Math.cos(angle) * speed;
+                    velocityAttribute.array[index * 3 + 1] = Math.sin(angle) * speed;
+                    velocityAttribute.array[index * 3 + 2] = (Math.random() - 0.5) * 0.05;
+
+                    // Reset life and size
+                    lifeAttribute.array[index] = 1.0;
+                    sizeAttribute.array[index] = 3 + Math.random() * 2;
+                }
+
+                positionAttribute.needsUpdate = true;
+                offsetAttribute.needsUpdate = true;
+                velocityAttribute.needsUpdate = true;
+                lifeAttribute.needsUpdate = true;
+                sizeAttribute.needsUpdate = true;
+
+                this.currentIndex = (this.currentIndex + count) % this.count;
+            }
+
+            update(time) {
+                const lifeAttribute = this.particles[0].geometry.getAttribute('life');
+                
+                // Update life of particles
+                for (let i = 0; i < this.count; i++) {
+                    if (lifeAttribute.array[i] > 0) {
+                        lifeAttribute.array[i] -= 0.01;
+                    }
+                }
+                
+                lifeAttribute.needsUpdate = true;
+
+                // Update shader uniforms
+                this.particles.forEach(particles => {
+                    particles.material.uniforms.time.value = time;
+                });
+            }
+        }
+
+        // Initialize scene
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ 
+            antialias: true, 
+            alpha: true,
+            premultipliedAlpha: false
+        });
+        
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x000000, 0);
+        container.appendChild(renderer.domElement);
+
+        // Create and add glitter system
+        const glitterSystem = new ImprovedGlitterSystem(5000);
+        glitterSystem.particles.forEach(particles => scene.add(particles));
+
+        // Setup camera
+        camera.position.z = 5;
+
+        // Track mouse position
+        const mousePosition = { x: null, y: null };
+        document.addEventListener('mousemove', (event) => {
+            mousePosition.x = event.clientX;
+            mousePosition.y = event.clientY;
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Animation loop
+        function animate(time) {
+            requestAnimationFrame(animate);
+            
+            // Emit particles on mouse move
+            if (mousePosition.x !== null && mousePosition.y !== null) {
+                const vector = new THREE.Vector3(
+                    (mousePosition.x / window.innerWidth) * 2 - 1,
+                    -(mousePosition.y / window.innerHeight) * 2 + 1,
+                    0.5
+                );
+                vector.unproject(camera);
+                glitterSystem.emit(vector, 2);
+            }
+            
+            // Update particles
+            glitterSystem.update(time * 0.001);
+            
+            renderer.render(scene, camera);
+        }
+
+        // Start animation
+        animate(0);
+    </script>
+</body>
+</html>

@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en" id="capture">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tandy Nitespace</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            /* background: linear-gradient(45deg, #000000, #1a0066); */
+            font-family: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        /* .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: 
+                radial-gradient(2px 2px at 20px 30px, #ffffff, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 40px 70px, #ffffff, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 50px 160px, #ffffff, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 90px 40px, #ffffff, rgba(0,0,0,0));
+            background-repeat: repeat;
+            background-size: 200px 200px;
+            animation: twinkle 4s infinite;
+        } */
+
+        /* @keyframes twinkle {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 0.5; }
+        } */
+
+        header {
+            text-align: center;
+            padding: 2rem;
+            font-size: 2.5rem;
+            font-weight: bold;
+            letter-spacing: 3px;
+            position: relative;
+            text-shadow: 0 0 10px rgba(255,255,255,0.3);
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .app-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 25px;
+            padding: 2rem;
+            position: relative;
+            /* z-index: 1; */
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .pretend-app {
+            background: rgba(255, 255, 255, 0.1);
+            /* backdrop-filter: blur(10px); */
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 2rem;
+            text-align: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+            min-height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pretend-app::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                45deg,
+                transparent,
+                rgba(255, 255, 255, 0.1),
+                transparent
+            );
+            transform: rotate(45deg);
+            animation: shine 3s infinite;
+            pointer-events: none;
+        }
+
+        .pretend-app:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        @keyframes shine {
+            0% { transform: translateX(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) rotate(45deg); }
+        }
+
+        #chat-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 300px;
+            /* z-index: 1000; */
+        }
+
+        .chatbox {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            overflow: hidden;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .chatbox-header {
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .chatbox-header h3 {
+            margin: 0;
+            font-size: 1rem;
+            color: white;
+        }
+
+        .chatbox-content {
+            height: 250px;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .chatbox-message {
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        .chatbox-footer {
+            padding: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            gap: 10px;
+        }
+
+        .chatbox-footer input {
+            flex: 1;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            outline: none;
+        }
+
+        .chatbox-footer button {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .chatbox-footer button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        #user-list-container {
+            position: fixed;
+            left: 20px;
+            top: 100px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            color: white;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        #user-list-container.collapsed {
+            transform: translateX(-100%);
+        }
+
+        #toggle-button {
+            position: absolute;
+            right: -120px;
+            top: 0;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 0 20px 20px 0;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+        }
+
+        .dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .dot.green {
+            background: #4ade80;
+            box-shadow: 0 0 10px #4ade80;
+        }
+
+        #online-users, #recent-users {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0;
+        }
+
+        #online-users li, #recent-users li {
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+        }
+
+        canvas {
+            position: fixed !important;
+            top: 0;
+            left: 0;
+            z-index: 9999999;
+        }
+        canvas.simulation {
+            z-index: -1;
+        }
+        </style>
+</head>
+<body>
+    <!-- Rest of your HTML remains the same -->
+     <div id="page">
+    <div class="stars"></div>
+
+    <header>
+        <span style="color: red;">T</span>
+        <span style="color: yellow;">A</span>
+        <span style="color: blue;">N</span>
+        <span style="color: purple;">D</span>
+        <span style="color: green;">Y</span>
+        Nitespace
+    </header>
+
+    <!-- Your existing content structure remains the same -->
+    
+    <!-- Keep your existing script tags and Three.js implementation --> <div class="app-grid">
+        <div class="pretend-app" onclick="glassDrop()">
+            Tandylinx
+            <!-- <img src="./catalog.gif"> -->
+        </div>
+
+        <div class="pretend-app" onclick="glassDrop()">
+            tandy forum
+        </div>
+        <div class="pretend-app" onclick="glassDrop()">
+            tandy chat
+        </div>
+        <div class="pretend-app" onclick="glassDrop()">
+            SounClown
+        </div>
+        <div class="pretend-app" onclick="glassDrop()">
+            digiCDs
+        </div>
+        <!-- <a href="./box.html">
+
+            <div class="pretend-app" style="background-image:url(./cube.png); background-size: cover;">
+            </div>
+        </a> -->
+        <div class="pretend-app" onclick="glassDrop()">
+            timelocked thing
+        </div>
+        <div class="pretend-app" onclick="glassDrop()">
+            fake tile shader
+        </div>
+        <div class="pretend-app" onclick="glassDrop()">
+            weird shader
+        </div>
+        <div class="pretend-app" onclick="glassDrop()">
+            weird error page
+        </div>
+        <div class="pretend-app" onclick="glassDrop()">
+            tandynet
+        </div>
+    </div>
+
+    <div id="chat-container">
+        <div id="chat-julie" class="chatbox">
+            <div class="chatbox-header">
+                <h3>Julie</h3>
+            </div>
+            <div class="chatbox-content">
+                <div class="chatbox-message">
+                    <span class="chatbox-message__sender">Julie:</span>
+                    <span class="chatbox-message__content">Hey, how are you?</span>
+                </div>
+                <div class="chatbox-message">
+                    <span class="chatbox-message__sender">You:</span>
+                    <span class="chatbox-message__content">I'm good, thanks! How about you?</span>
+                </div>
+                <div class="chatbox-message">
+                    <span class="chatbox-message__sender">Julie:</span>
+                    <span class="chatbox-message__content">I'm doing great, thanks for asking!</span>
+                </div>
+            </div>
+            <div class="chatbox-footer">
+                <input type="text" placeholder="Type a message...">
+                <button>Send</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="user-list-container" class="">
+        <button id="toggle-button">Hide Online Users</button>
+        <div id="user-list-content">
+            <h3>Online Users</h3>
+            <ul id="online-users">
+                <!-- Online users will be injected here -->
+            </ul>
+            <h4>Recently Online Users</h4>
+            <ul id="recent-users">
+                <!-- Recently online users will be injected here -->
+            </ul>
+        </div>
+    </div>
+</div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const toggleButton = document.getElementById('toggle-button');
+            const container = document.getElementById('user-list-container');
+
+            // Dummy data for users
+            const onlineUsers = ['jestereliceX', 'passwordtest', 'umru'];
+            const recentUsers = ['Dave (2 min ago)', 'Eve (10 min ago)', 'Frank (30 min ago)'];
+
+            // Populate the online users list
+            const onlineUsersList = document.getElementById('online-users');
+            onlineUsers.forEach(user => {
+                const li = document.createElement('li');
+                const dot = document.createElement('span');
+                dot.classList.add('dot', 'green');
+
+                const username = document.createElement('span');
+                username.textContent = user;
+                li.appendChild(dot);
+                li.appendChild(username);
+                onlineUsersList.appendChild(li);
+            });
+
+            // Populate the recently online users list
+            const recentUsersList = document.getElementById('recent-users');
+            recentUsers.forEach(user => {
+                const li = document.createElement('li');
+                // const statusDot = document.createElement('i');
+                // statusDot.classList.add('pulse');
+                // statusDot.classList.add('green');
+
+                // li.appendChild(document.createElement('i'));;
+                const dot = document.createElement('span');
+                dot.classList.add('dot');
+
+                const username = document.createElement('span');
+                username.textContent = user;
+                li.appendChild(dot);
+                li.appendChild(username);
+
+                recentUsersList.appendChild(li);
+            });
+
+            // Toggle visibility of the user list
+            toggleButton.addEventListener('click', () => {
+                if (container.classList.contains('collapsed')) {
+                    container.classList.remove('collapsed');
+                    toggleButton.textContent = 'Hide Online Users';
+                } else {
+                    container.classList.add('collapsed');
+                    toggleButton.textContent = 'Show Online Users';
+                }
+            });
+        });
+    </script>
+
+<script>
+    const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ alpha: true, preserveDrawingBuffer: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x000000, 0);
+renderer.domElement.classList.add("simulation");
+document.body.appendChild(renderer.domElement);
+
+// Create a larger plane with higher segment count
+const geometry = new THREE.PlaneGeometry(5, 4, 200, 200);
+const material = new THREE.MeshPhongMaterial({
+    color: 0x801080,
+    // color: 0x0000f0,
+    specular: 0x444444,
+    shininess: 30,
+    flatShading: false,
+    side: THREE.DoubleSide
+});
+
+const plane = new THREE.Mesh(geometry, material);
+scene.add(plane);
+
+// Enhanced lighting setup
+const light = new THREE.DirectionalLight(0xffffff, 0.8);
+light.position.set(-5, 5, 7);
+scene.add(light);
+const light2 = new THREE.DirectionalLight(0xffffff, 0.5);
+light2.position.set(5, -5, 7);
+scene.add(light2);
+const ambientLight = new THREE.AmbientLight(0x404040);
+scene.add(ambientLight);
+
+camera.position.z = 2;
+
+// Physics simulation variables
+const originalPositions = geometry.attributes.position.array.slice();
+const velocities = new Float32Array(geometry.attributes.position.array.length);
+const forces = new Float32Array(geometry.attributes.position.array.length);
+let mousePosition = new THREE.Vector2();
+let raycaster = new THREE.Raycaster();
+let intersectionPoint = new THREE.Vector3();
+let dragRadius = 0.4;
+
+// Adjusted physics constants for smoother movement
+const SPRING_CONSTANT = 0.1;
+const DAMPING = 0.97;
+const MASS = 20.90;
+const FORCE_MULTIPLIER = 0.15;
+
+// Create a normal buffer to store computed normals
+const normalBuffer = new THREE.BufferAttribute(
+    new Float32Array(geometry.attributes.normal.array.length),
+    3
+);
+
+function updateMousePosition(event) {
+    mousePosition.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mousePosition.y = -(event.clientY / window.innerHeight) * 2 + 1;
+}
+
+document.addEventListener('mousemove', updateMousePosition);
+document.addEventListener('touchmove', (e) => {
+    const touch = e.touches[0];
+    updateMousePosition({
+        clientX: touch.clientX,
+        clientY: touch.clientY
+    });
+}, { passive: true });
+
+// Improved normal calculation
+function computeCustomNormals() {
+    const positions = geometry.attributes.position.array;
+    const normals = normalBuffer.array;
+    const indices = geometry.index.array;
+    
+    // Reset normals
+    normals.fill(0);
+    
+    // Calculate normals for each face
+    for (let i = 0; i < indices.length; i += 3) {
+        const idx1 = indices[i] * 3;
+        const idx2 = indices[i + 1] * 3;
+        const idx3 = indices[i + 2] * 3;
+        
+        // Get vertices of the triangle
+        const v1 = new THREE.Vector3(
+            positions[idx1],
+            positions[idx1 + 1],
+            positions[idx1 + 2]
+        );
+        const v2 = new THREE.Vector3(
+            positions[idx2],
+            positions[idx2 + 1],
+            positions[idx2 + 2]
+        );
+        const v3 = new THREE.Vector3(
+            positions[idx3],
+            positions[idx3 + 1],
+            positions[idx3 + 2]
+        );
+        
+        // Calculate normal
+        const edge1 = v2.sub(v1);
+        const edge2 = v3.sub(v1);
+        const normal = edge1.cross(edge2).normalize();
+        
+        // Add normal to all vertices of the face
+        for (let j = 0; j < 3; j++) {
+            const idx = indices[i + j] * 3;
+            normals[idx] += normal.x;
+            normals[idx + 1] += normal.y;
+            normals[idx + 2] += normal.z;
+        }
+    }
+    
+    // Normalize all vertex normals
+    for (let i = 0; i < normals.length; i += 3) {
+        const nx = normals[i];
+        const ny = normals[i + 1];
+        const nz = normals[i + 2];
+        const length = Math.sqrt(nx * nx + ny * ny + nz * nz);
+        
+        if (length > 0) {
+            normals[i] /= length;
+            normals[i + 1] /= length;
+            normals[i + 2] /= length;
+        }
+    }
+    
+    // Update geometry normals
+    geometry.attributes.normal.array.set(normals);
+    geometry.attributes.normal.needsUpdate = true;
+}
+
+function updatePhysics() {
+    const positions = geometry.attributes.position.array;
+    forces.fill(0);
+
+    raycaster.setFromCamera(mousePosition, camera);
+    const intersection = raycaster.intersectObject(plane);
+    
+    if (intersection.length > 0) {
+        intersectionPoint.copy(intersection[0].point);
+        
+        for (let i = 0; i < positions.length; i += 3) {
+            const vertexPosition = new THREE.Vector3(
+                positions[i],
+                positions[i + 1],
+                positions[i + 2]
+            );
+            
+            const distance = vertexPosition.distanceTo(intersectionPoint);
+            
+            if (distance < dragRadius) {
+                const force = 1 - (distance / dragRadius);
+                const direction = vertexPosition.sub(intersectionPoint).normalize();
+                forces[i] += direction.x * force * FORCE_MULTIPLIER;
+                forces[i + 1] += direction.y * force * FORCE_MULTIPLIER;
+                forces[i + 2] += direction.z * force * FORCE_MULTIPLIER;
+            }
+        }
+    }
+
+    for (let i = 0; i < positions.length; i += 3) {
+        const dx = originalPositions[i] - positions[i];
+        const dy = originalPositions[i + 1] - positions[i + 1];
+        const dz = originalPositions[i + 2] - positions[i + 2];
+        
+        forces[i] += dx * SPRING_CONSTANT;
+        forces[i + 1] += dy * SPRING_CONSTANT;
+        forces[i + 2] += dz * SPRING_CONSTANT;
+        
+        velocities[i] = velocities[i] * DAMPING + forces[i] / MASS;
+        velocities[i + 1] = velocities[i + 1] * DAMPING + forces[i + 1] / MASS;
+        velocities[i + 2] = velocities[i + 2] * DAMPING + forces[i + 2] / MASS;
+        
+        positions[i] += velocities[i];
+        positions[i + 1] += velocities[i + 1];
+        positions[i + 2] += velocities[i + 2];
+    }
+
+    geometry.attributes.position.needsUpdate = true;
+    computeCustomNormals();
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    updatePhysics();
+    renderer.render(scene, camera);
+}
+
+function onWindowResize() {
+    const aspect = window.innerWidth / window.innerHeight;
+    camera.aspect = aspect;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    
+    const distance = camera.position.z;
+    const vFov = camera.fov * Math.PI / 180;
+    const height = 2 * Math.tan(vFov / 2) * distance;
+    const width = height * aspect;
+    
+    plane.scale.set(width / 4 * 1.2, height / 3 * 1.2, 1);
+}
+
+window.addEventListener('resize', onWindowResize);
+onWindowResize();
+animate();
+</script>
+
+<script type="text/x-vertex-shader" id="vs">
+    attribute vec3 a_position;
+    attribute vec3 a_normal;
+    attribute vec2 a_texcoord;
+    
+    varying vec3 v_view;
+    varying vec3 v_light;
+    varying vec3 v_normal;
+    varying vec2 v_texcoord;
+    
+    void main() {
+        vec4 p = u_modelView * vec4(a_position, 1.0);
+        v_normal = mat3(u_modelView) * a_normal;
+        v_view = -p.xyz;
+        v_light = u_lightPos - p.xyz;
+        v_texcoord = a_texcoord;
+        gl_Position = u_proj * p;
+    }
+    </script>
+    
+    <script type="text/x-fragment-shader" id="fs">
+    varying vec3 v_view;
+    varying vec3 v_light;
+    varying vec3 v_normal;
+    varying vec2 v_texcoord;
+    uniform sampler2D u_albedo;
+    void main() {
+        vec3 n = normalize(v_normal);
+        vec3 l = normalize(v_light);
+        vec3 v = normalize(v_view);
+        vec3 r = reflect(-l, n);
+        vec3 albedo = pow(texture2D(u_albedo, v_texcoord).xyz, vec3(2.2));
+        vec3 diffuse = max(dot(n, l), 0.0)*albedo;
+        vec3 specular = vec3(0.0);//pow(max(dot(r, v), 0.0), 30.0) * u_lightColor;
+        vec3 color = saturate(u_ambient * albedo + diffuse + specular);
+        gl_FragColor = vec4(pow(color, vec3(1.0/2.2)), 1.0);
+    }
+    </script>
+
+    <script>
+        function glassDrop() {
+            // stop the simulation
+            stop();
+            // delete page
+            let page = document.getElementById("page");
+            let canvas = document.querySelector(".simulation");
+            console.log("page", page);
+            page.innerHTML = "";
+            canvas.remove();
+            // add absolute to remaining canvases
+            let canvases = document.querySelectorAll("canvas");
+            for (let canvas of canvases) {
+                canvas.style.position = "absolute";
+                canvas.style.top = "0";
+                canvas.style.left = "0";
+            }
+
+            // delete style
+            let styles = document.querySelectorAll("style");
+            for (let style of styles) {
+                style.remove();
+            }
+            
+            fetch('./earlytest.html')
+                .then(response => response.text())
+                .then(text => {
+                    page.innerHTML = text;
+                });
+        }
+
+        window.addEventListener('keydown', async function(e) {
+            if (e.key.toLowerCase() === 's') {
+                setTimeout(() => {
+                    glassDrop();
+                }, 400);
+            }
+        });
+
+    </script>
+<script src="simutil.js"></script>
+<script src="cloth.js"></script>
+
+</body>
+
+</html>

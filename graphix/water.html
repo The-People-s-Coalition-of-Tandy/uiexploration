@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stretchy Background</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden;
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #2980b9; /* Match plane color to avoid black edges */
+        }
+        canvas { 
+            display: block; 
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: -1;
+            cursor: none;
+        }
+        .content {
+            position: relative;
+            z-index: 1;
+            padding: 2rem;
+            /* color: white; */
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+        h1 {
+            font-size: 3rem;
+            margin: 0 0 1rem 0;
+        }
+        p {
+            font-size: 1.2rem;
+            max-width: 600px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="content">
+        <h1>BLUE DiSH</h1>
+    </div>
+    <script>
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x2980b9); // Match background color
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Create a larger plane with higher segment count
+        const geometry = new THREE.PlaneGeometry(5, 4, 100, 75);
+        const material = new THREE.MeshPhongMaterial({
+            color: 0x2980b9,
+            specular: 0x444444,
+            shininess: 30,
+            flatShading: false,
+            side: THREE.DoubleSide
+        });
+
+        const plane = new THREE.Mesh(geometry, material);
+        scene.add(plane);
+
+        // Enhanced lighting setup
+        const light = new THREE.DirectionalLight(0xffffff, 0.8);
+        light.position.set(-5, 5, 7);
+        scene.add(light);
+        const light2 = new THREE.DirectionalLight(0xffffff, 0.5);
+        light2.position.set(5, -5, 7);
+        scene.add(light2);
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+
+        camera.position.z = 2;
+
+        // Physics simulation variables
+        const originalPositions = geometry.attributes.position.array.slice();
+        const velocities = new Float32Array(geometry.attributes.position.array.length);
+        const forces = new Float32Array(geometry.attributes.position.array.length);
+        let mousePosition = new THREE.Vector2();
+        let raycaster = new THREE.Raycaster();
+        let intersectionPoint = new THREE.Vector3();
+        let dragRadius = 0.4; // Increased radius of effect
+
+        // Adjusted physics constants for smoother continuous movement
+        const SPRING_CONSTANT = 0.1;
+        const DAMPING = 0.97;
+        const MASS = 20.90;
+        const FORCE_MULTIPLIER = 0.15;
+
+        // Mouse event handlers - now we only need move
+        function updateMousePosition(event) {
+            mousePosition.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mousePosition.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        }
+
+        document.addEventListener('mousemove', updateMousePosition);
+        
+        // Touch support
+        document.addEventListener('touchmove', (e) => {
+            const touch = e.touches[0];
+            const event = {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            };
+            updateMousePosition(event);
+        }, { passive: true });
+
+        // Physics simulation
+        function updatePhysics() {
+            const positions = geometry.attributes.position.array;
+            forces.fill(0);
+
+            // Always apply force based on mouse position
+            raycaster.setFromCamera(mousePosition, camera);
+            const intersection = raycaster.intersectObject(plane);
+            
+            if (intersection.length > 0) {
+                intersectionPoint.copy(intersection[0].point);
+                
+                for (let i = 0; i < positions.length; i += 3) {
+                    const vertexPosition = new THREE.Vector3(
+                        positions[i],
+                        positions[i + 1],
+                        positions[i + 2]
+                    );
+                    
+                    const distance = vertexPosition.distanceTo(intersectionPoint);
+                    
+                    if (distance < dragRadius) {
+                        const force = 1 - (distance / dragRadius);
+                        const direction = vertexPosition.sub(intersectionPoint).normalize();
+                        forces[i] += direction.x * force * FORCE_MULTIPLIER;
+                        forces[i + 1] += direction.y * force * FORCE_MULTIPLIER;
+                        forces[i + 2] += direction.z * force * FORCE_MULTIPLIER;
+                    }
+                }
+            }
+
+            for (let i = 0; i < positions.length; i += 3) {
+                const dx = originalPositions[i] - positions[i];
+                const dy = originalPositions[i + 1] - positions[i + 1];
+                const dz = originalPositions[i + 2] - positions[i + 2];
+                
+                forces[i] += dx * SPRING_CONSTANT;
+                forces[i + 1] += dy * SPRING_CONSTANT;
+                forces[i + 2] += dz * SPRING_CONSTANT;
+                
+                velocities[i] = velocities[i] * DAMPING + forces[i] / MASS;
+                velocities[i + 1] = velocities[i + 1] * DAMPING + forces[i + 1] / MASS;
+                velocities[i + 2] = velocities[i + 2] * DAMPING + forces[i + 2] / MASS;
+                
+                positions[i] += velocities[i];
+                positions[i + 1] += velocities[i + 1];
+                positions[i + 2] += velocities[i + 2];
+            }
+
+            geometry.attributes.position.needsUpdate = true;
+            geometry.computeVertexNormals();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            updatePhysics();
+            renderer.render(scene, camera);
+        }
+
+        // Improved window resize handling with extra padding
+        function onWindowResize() {
+            const aspect = window.innerWidth / window.innerHeight;
+            camera.aspect = aspect;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            
+            // Adjust plane scale to maintain full coverage with padding
+            const distance = camera.position.z;
+            const vFov = camera.fov * Math.PI / 180;
+            const height = 2 * Math.tan(vFov / 2) * distance;
+            const width = height * aspect;
+            
+            // Add 20% padding to prevent edge clipping
+            plane.scale.set(width / 4 * 1.2, height / 3 * 1.2, 1);
+        }
+
+        window.addEventListener('resize', onWindowResize);
+        onWindowResize(); // Initial call to set correct size
+
+        animate();
+    </script>
+</body>
+</html>
