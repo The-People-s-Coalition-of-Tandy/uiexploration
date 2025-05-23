@@ -303,7 +303,6 @@
         <div class="stream-time">00:00:00</div>
         <div id="date"></div>
         <div class="now-playing marquee">Cut on a Can dance – Kat Mazur</div>
-        <div id="cameraMode" style="font-size: 12px; opacity: 0.7;">📱 Mobile Camera</div>
     </div>
     <img id="displacementMap" src="./displace.png" 
          style="display: none;" crossorigin="anonymous">
@@ -328,24 +327,21 @@
         uniform vec2 iMouse;
         uniform sampler2D iChannel0;
         uniform sampler2D iChannel1;
-        uniform vec3 uOrbPositions[6];  // Reduced from 10 to match MAX_ORBS
-        uniform vec3 uOrbColors[6];     // Color for each orb
+        uniform vec3 uOrbPositions[10];  // Max 10 orbs
+        uniform vec3 uOrbColors[10];     // Color for each orb
         uniform int uOrbCount;           // Current number of active orbs
         uniform sampler2D uTextTexture;  // Single text texture (we'll use texture atlas later)
-        uniform vec3 uTextPositions[6]; // Positions for text billboards
+        uniform vec3 uTextPositions[10]; // Positions for text billboards
         uniform int uTextCount;          // Number of active text billboards
-        uniform vec3 uCameraPos;         // Camera position
-        uniform vec2 uCameraRot;         // Camera rotation (pitch, yaw)
-        uniform bool uUsePolarCamera;    // Whether to use polar camera mode
-        uniform vec2 uPolarRotation;     // Polar camera rotation (pitch, yaw)
+        uniform vec3 uCameraOffset;      // Camera position offset for WASD movement
         varying vec2 vTextureCoord;
 
         #define EPSILON .0001
-        #define MAX_VIEW_STEPS 500
-        #define MAX_SHADOW_STEPS 32
-        #define OCCLUSION_SAMPLES 4.0
+        #define MAX_VIEW_STEPS 100
+        #define MAX_SHADOW_STEPS 64
+        #define OCCLUSION_SAMPLES 8.0
         #define OCCLUSION_FACTOR .5
-        #define MAX_DEPTH 50.0
+        #define MAX_DEPTH 10.0
         #define BUMP_FACTOR .03
         #define TEX_SCALE_FACTOR .4
         #define ORB_RADIUS 0.2
@@ -407,10 +403,6 @@ float distVideoPlane(vec3 p) {
 }
 
         float distTextBillboard(vec3 p, vec3 center, vec3 cameraPos) {
-            // Early distance check - if we're far from the billboard center, skip expensive calculations
-            float roughDist = length(p - center);
-            if (roughDist > 0.5) return roughDist; // Return actual distance, no offset
-            
             // Calculate billboard orientation (always face camera)
             vec3 toCam = normalize(cameraPos - center);
             vec3 up = vec3(0.0, 1.0, 0.0);
@@ -423,18 +415,19 @@ float distVideoPlane(vec3 p) {
             
             // Check if within billboard bounds
             if (abs(localPos.x) > TEXT_BILLBOARD_SIZE.x || abs(localPos.y) > TEXT_BILLBOARD_SIZE.y) {
-                return length(local); // Return actual distance, no offset
+                return 100.0;
             }
             
             // Calculate UV and sample texture to check if there's text here
             vec2 uv = (localPos / TEXT_BILLBOARD_SIZE) * 0.5 + 0.5;
             uv.y = 1.0 - uv.y;
+            uv.x = 1.0 - uv.x;
             
             vec4 textColor = texture2D(uTextTexture, uv);
             
             // Only register as a surface if there's text (alpha > threshold)
             if (textColor.a < 0.1) {
-                return 100.0; // Return large distance to prevent sphere rendering
+                return 100.0; // No surface where text is transparent
             }
             
             // Distance to billboard plane
@@ -472,65 +465,30 @@ float distVideoPlane(vec3 p) {
 float getDist(vec3 samplePos, bool skipVideoPlane, vec3 cameraPos) {
     float d = min(distBox(samplePos, BOX_POS, BOX_DIM), 
     distBox(samplePos, vec3(0.0, -5.0, 0.0), vec3(4.0, 4.0, 4.0)));
+    //float d =     distBox(samplePos, vec3(0.0, -5.0, 0.0), vec3(4.0, 4.0, 4.0));
+    //float d2 = sdBox(samplePos, vec3(0.0, 1.0, 0.0), vec3(0.001,.4, 0.4));
+    //d = min(d, d2);
 
-    // Optimized orb checking with early exit
-    float minOrbDist = 1000.0;
-    for (int i = 0; i < 6; i++) {
+    // Check orbs
+    for (int i = 0; i < 10; i++) {
         if (i >= uOrbCount) break;
-        float orbDist = distSphere(samplePos, uOrbPositions[i], ORB_RADIUS);
-        minOrbDist = min(minOrbDist, orbDist);
-        // Early exit if we're very close to an orb
-        if (orbDist < 0.01) break;
+        d = min(d, distSphere(samplePos, uOrbPositions[i], ORB_RADIUS));
     }
-    d = min(d, minOrbDist);
 
-    // Only check text billboards if we're close to orbs
-    if (minOrbDist < 1.0) {
-        for (int i = 0; i < 6; i++) {
-            if (i >= uTextCount) break;
-            d = min(d, distTextBillboard(samplePos, uTextPositions[i], cameraPos));
-        }
+    // Check text billboards
+    for (int i = 0; i < 10; i++) {
+        if (i >= uTextCount) break;
+        d = min(d, distTextBillboard(samplePos, uTextPositions[i], cameraPos));
     }
 
     // Add video plane
     if (!skipVideoPlane) {
-        float dVideo = distVideoPlane(samplePos);
-        d = min(d, dVideo);
+    float dVideo = distVideoPlane(samplePos);
+    d = min(d, dVideo);
     }
 
     return d;
 }
-
-        void camFreefly(out vec3 pos, out vec3 dir, in vec3 cameraPos, in vec2 rotation, in vec2 fragCoord) {
-            pos = cameraPos;
-            
-            // Calculate screen coordinates
-            vec2 uv = (fragCoord.xy - iResolution.xy * 0.5) / iResolution.y;
-            
-            // Create view ray in camera space (looking down -Z)
-            vec3 rayDir = normalize(vec3(uv.x, uv.y, -1.0));
-            
-            // Build rotation matrix from yaw and pitch
-            float yaw = rotation.y;
-            float pitch = rotation.x;
-            
-            // Rotation matrix for yaw (Y axis)
-            mat3 yawMatrix = mat3(
-                cos(yaw), 0.0, sin(yaw),
-                0.0, 1.0, 0.0,
-                -sin(yaw), 0.0, cos(yaw)
-            );
-            
-            // Rotation matrix for pitch (X axis)
-            mat3 pitchMatrix = mat3(
-                1.0, 0.0, 0.0,
-                0.0, cos(pitch), -sin(pitch),
-                0.0, sin(pitch), cos(pitch)
-            );
-            
-            // Apply rotations: first pitch, then yaw
-            dir = yawMatrix * pitchMatrix * rayDir;
-        }
 
         void camPolar(out vec3 pos, out vec3 dir, in vec3 origin, in vec2 rotation, in float dist, in float zoom, in vec2 fragCoord) {
             vec2 c = cos(rotation);
@@ -592,20 +550,15 @@ float getDist(vec3 samplePos, bool skipVideoPlane, vec3 cameraPos) {
                 float d = min(distBox(pos, BOX_POS, BOX_DIM), 
                 distBox(pos, vec3(0.0, -5.0, 0.0), vec3(4.0, 4.0, 4.0)));
                 
-                // Optimized orb checking for shadows with early exit
-                for (int j = 0; j < 6; j++) {
+                // Check orbs for shadows
+                for (int j = 0; j < 10; j++) {
                     if (j >= uOrbCount) break;
-                    float orbDist = distSphere(pos, uOrbPositions[j], ORB_RADIUS);
-                    d = min(d, orbDist);
-                    // Early exit if we hit an orb
-                    if (orbDist < EPSILON) {
-                        return 0.0;
-                    }
+                    d = min(d, distSphere(pos, uOrbPositions[j], ORB_RADIUS));
                 }
                 
                 dist = d;
         
-                // Check video plane (simplified)
+                // Check video plane
                 vec3 center = PLANE_CENTER;
                 vec2 planeSize = PLANE_SIZE;
                 vec3 local = pos - center;
@@ -665,7 +618,7 @@ float getDist(vec3 samplePos, bool skipVideoPlane, vec3 cameraPos) {
             
             // Check if we're on an orb surface
             vec4 finalColor = material.color;
-            for(int i = 0; i < 6; i++) {
+            for(int i = 0; i < 10; i++) {
                 if(i >= uOrbCount) break;
                 if(length(samplePos - uOrbPositions[i]) < ORB_RADIUS + EPSILON) {
                     finalColor = vec4(uOrbColors[i], 1.0);
@@ -680,7 +633,7 @@ float getDist(vec3 samplePos, bool skipVideoPlane, vec3 cameraPos) {
             if (length(pos - eye) > MAX_DEPTH - EPSILON) return vec4(0.0);
 
             // Check if this point is on a text billboard
-            for (int i = 0; i < 6; i++) {
+            for (int i = 0; i < 10; i++) {
                 if (i >= uTextCount) break;
                 
                 vec3 center = uTextPositions[i];
@@ -699,6 +652,7 @@ float getDist(vec3 samplePos, bool skipVideoPlane, vec3 cameraPos) {
                     // Calculate UV coordinates for the text texture
                     vec2 uv = (localPos / TEXT_BILLBOARD_SIZE) * 0.5 + 0.5;
                     uv.y = 1.0 - uv.y; // Flip Y coordinate
+                    uv.x = 1.0 - uv.x; // Flip X coordinate if needed
                     
                     // Sample the text texture
                     vec4 textColor = texture2D(uTextTexture, uv);
@@ -773,11 +727,7 @@ float getDist(vec3 samplePos, bool skipVideoPlane, vec3 cameraPos) {
             vec2 fragCoord = gl_FragCoord.xy;
             vec3 pos, dir, eye;
             
-            if (uUsePolarCamera) {
-                camPolar(pos, dir, vec3(0.0), uPolarRotation, 5.0, 1.0, fragCoord);
-            } else {
-                camFreefly(pos, dir, uCameraPos, uCameraRot, fragCoord);
-            }
+            camPolar(pos, dir, vec3(0.0), vec2(.5, iMouse.x*.0075+.025), 3.75, 1.0, fragCoord);
             eye = vec3(pos);
             
             Light light = Light(
@@ -804,32 +754,10 @@ float getDist(vec3 samplePos, bool skipVideoPlane, vec3 cameraPos) {
         let audioFadeInterval;
         let audioContext;
 
-        // Camera controls
-        let cameraPos = [0.0, 2.5, 3.5]; // Adjusted to match original polar camera position
-        let cameraRot = [0.5, 0.025]; // pitch, yaw - matching original polar camera rotation
-        let keys = {};
-        let mouseLocked = false;
-        let lastMouseX = 0;
-        let lastMouseY = 0;
-        const MOVE_SPEED = 0.05;
-        const MOUSE_SENSITIVITY = 0.002;
-
-        // Mobile/touch support
-        let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        let usePolarCamera = isMobile; // Use polar camera on mobile, free-fly on desktop
-        let touchStartX = 0;
-        let touchStartY = 0;
-        let polarRotation = 2.9824999999999946; // For 
-        let polarPitch = 0.514; // For polar camera mode
-
-        function updateCameraModeIndicator() {
-            const indicator = document.getElementById('cameraMode');
-            if (usePolarCamera) {
-                indicator.textContent = isMobile ? '📱 Mobile Camera' : '🔄 Polar Camera (C to toggle)';
-            } else {
-                indicator.textContent = '🎮 Free-fly Camera (C to toggle)';
-            }
-        }
+        // Camera movement variables
+        let cameraPosition = { x: 0, y: 0, z: 0 };
+        let keys = { w: false, a: false, s: false, d: false, q: false, e: false };
+        const moveSpeed = 0.05;
 
         const date = document.getElementById('date');
         date.innerHTML = new Date().toLocaleDateString();
@@ -925,162 +853,18 @@ float getDist(vec3 samplePos, bool skipVideoPlane, vec3 cameraPos) {
             startVideo();
         });
 
-        // Keyboard controls
-        document.addEventListener('keydown', (e) => {
-            keys[e.code] = true;
-            
-            // Toggle camera mode with 'C' key
-            if (e.code === 'KeyC') {
-                usePolarCamera = !usePolarCamera;
-                console.log('Camera mode:', usePolarCamera ? 'Polar (orbit around cube)' : 'Free-fly');
-                updateCameraModeIndicator();
-            }
-            
-            // Request pointer lock on first key press for mouse look (only in free-fly mode)
-            if (!mouseLocked && !usePolarCamera && (e.code === 'KeyW' || e.code === 'KeyA' || e.code === 'KeyS' || e.code === 'KeyD')) {
-                document.body.requestPointerLock();
-            }
-        });
-
-        document.addEventListener('keyup', (e) => {
-            keys[e.code] = false;
-        });
-
-        // Mouse controls
-        document.addEventListener('pointerlockchange', () => {
-            mouseLocked = document.pointerLockElement === document.body;
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (mouseLocked) {
-                cameraRot[1] += e.movementX * MOUSE_SENSITIVITY; // yaw
-                cameraRot[0] += e.movementY * MOUSE_SENSITIVITY; // pitch (not inverted)
-                
-                // Clamp pitch to prevent flipping
-                cameraRot[0] = Math.max(-Math.PI/2, Math.min(Math.PI/2, cameraRot[0]));
-            } else {
-                mouseX = e.clientX;
-                // Update polar rotation for non-locked mouse (used in polar mode)
-                // Only update on desktop devices, not mobile
-                if (usePolarCamera && !isMobile) {
-                    polarRotation = mouseX * 0.0075 + 0.025;
-                }
-            }
-        });
-
-        // Touch event handlers for mobile
-        document.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-                touchStartX = e.touches[0].clientX;
-                touchStartY = e.touches[0].clientY;
-            }
-        });
-
-        document.addEventListener('touchmove', (e) => {
-            e.preventDefault(); // Prevent scrolling
-            if (e.touches.length === 1 && usePolarCamera) {
-                const touch = e.touches[0];
-                const deltaX = touch.clientX - touchStartX;
-                const deltaY = touch.clientY - touchStartY;
-                
-                // Update polar camera rotation based on touch movement
-                polarRotation += deltaX * 0.005; // Horizontal swipe controls rotation around cube
-                polarPitch += deltaY * 0.002; // Vertical swipe controls pitch
-                
-                // Clamp pitch
-                polarPitch = Math.max(0.1, Math.min(0.9, polarPitch));
-
-                console.log(polarRotation, polarPitch);
-                
-                touchStartX = touch.clientX;
-                touchStartY = touch.clientY;
-            }
-        });
-
-        document.addEventListener('touchend', (e) => {
-            // Touch ended
-        });
-
-        function updateCamera() {
-            // Only apply movement controls in free-fly mode
-            if (usePolarCamera) return;
-            
-            const yaw = cameraRot[1];
-            const pitch = cameraRot[0];
-            
-            // Calculate forward direction (where we're looking) - fixed coordinate system
-            const forward = [
-                Math.sin(yaw) * Math.cos(pitch),  // X component
-                -Math.sin(pitch),                 // Y component (negative because up is positive Y)
-                -Math.cos(yaw) * Math.cos(pitch)  // Z component (negative because forward is negative Z)
-            ];
-            
-            // Calculate right direction (90 degrees from forward in horizontal plane)
-            const right = [
-                Math.cos(yaw),   // X component
-                0,               // Y component (no vertical component for strafe)
-                Math.sin(yaw)    // Z component
-            ];
-            
-            // Calculate up direction (for vertical movement)
-            const up = [0, 1, 0];
-            
-            // Movement - W/S for forward/backward, A/D for left/right strafe
-            if (keys['KeyW']) {
-                cameraPos[0] += forward[0] * MOVE_SPEED;
-                cameraPos[1] += forward[1] * MOVE_SPEED;
-                cameraPos[2] += forward[2] * MOVE_SPEED;
-            }
-            if (keys['KeyS']) {
-                cameraPos[0] -= forward[0] * MOVE_SPEED;
-                cameraPos[1] -= forward[1] * MOVE_SPEED;
-                cameraPos[2] -= forward[2] * MOVE_SPEED;
-            }
-            if (keys['KeyA']) {
-                cameraPos[0] -= right[0] * MOVE_SPEED;  // Strafe left
-                cameraPos[1] -= right[1] * MOVE_SPEED;
-                cameraPos[2] -= right[2] * MOVE_SPEED;
-            }
-            if (keys['KeyD']) {
-                cameraPos[0] += right[0] * MOVE_SPEED;  // Strafe right
-                cameraPos[1] += right[1] * MOVE_SPEED;
-                cameraPos[2] += right[2] * MOVE_SPEED;
-            }
-            if (keys['Space']) {
-                cameraPos[1] += MOVE_SPEED;  // Move up
-            }
-            if (keys['ShiftLeft'] || keys['ShiftRight']) {
-                cameraPos[1] -= MOVE_SPEED;  // Move down
-            }
-        }
-
         // Orb management
-        const MAX_ORBS = 6; // Reduced from 10
-        const ORB_LIFETIME = 30000; // 30 seconds lifetime for each orb (increased from 10s)
-        const SPAWN_INTERVAL = 4000; // 4 seconds between spawns (increased from 3s)
+        const MAX_ORBS = 10;
+        const ORB_LIFETIME = 10000; // 10 seconds lifetime for each orb
+        const SPAWN_INTERVAL = 2000; // 2 seconds between spawns
         let orbs = [];
 
         const RANDOM_NAMES = [
-            "umru", "ryjelsum", "qui.et", "lost_in_the_loop", "npnc", "theresa_sweetheart", 
-            "edude92", "tristan", "Crenchwater", "erowidfan", "ButitsAlex"
+            "umru", "ryjelsum", "qui.et", "lost_in_the_loop", "npnc", "theresa_sweetheart", "edude92", "tristan", "Crenchwater", "erowidfan", "ButitsAlex"
         ];
 
-        let usedNames = new Set(); // Track used names to ensure uniqueness
-
         function getRandomName() {
-            // Get available names (not currently used)
-            const availableNames = RANDOM_NAMES.filter(name => !usedNames.has(name));
-            
-            // If all names are used, clear the used names set and start over
-            if (availableNames.length === 0) {
-                usedNames.clear();
-                return RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)];
-            }
-            
-            // Return a random available name
-            const selectedName = availableNames[Math.floor(Math.random() * availableNames.length)];
-            usedNames.add(selectedName);
-            return selectedName;
+            return RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)];
         }
 
         class Orb {
@@ -1096,122 +880,21 @@ float getDist(vec3 samplePos, bool skipVideoPlane, vec3 cameraPos) {
         this.textTexture = this.createTextTexture();
         this.textPosition = [
             this.position[0],
-            this.position[1] + 0.3, // Reverted back to original position
+            this.position[1] + 0.3, // Reduced from 0.4 to bring text closer to orb
             this.position[2]
         ];
-        
-        // Movement properties
-        this.velocity = [0, 0, 0];
-        this.targetPosition = [...this.position];
-        this.moveSpeed = 0.01 + Math.random() * 0.02; // Random speed between 0.01-0.03
-        this.lastMoveTime = Date.now();
-        this.moveInterval = 2000 + Math.random() * 4000; // Move every 2-6 seconds
-        this.movementPattern = Math.floor(Math.random() * 3); // 0: wandering, 1: orbiting, 2: exploring
-        this.orbitCenter = [...this.position];
-        this.orbitAngle = Math.random() * Math.PI * 2;
-        this.orbitRadius = 0.5 + Math.random() * 1.0;
     }
 
     getValidPosition() {
         const angle = Math.random() * Math.PI * 2;
-        const radius = 2 + Math.random() * 1.5; // 2-3.5 units from center (increased range)
-        const height = Math.random() * 2.0 - 1.0; // -1.0 to 1.0 vertical range (increased)
+        const radius = 2 + Math.random() * 0.5; // 2-2.5 units from center
+        const height = Math.random() * 1.2 - 0.6; // -0.6 to 0.6 vertical range
         
         return [
             Math.cos(angle) * radius,
             height,
             Math.sin(angle) * radius
         ];
-    }
-
-    updateMovement() {
-        const now = Date.now();
-        
-        // Check if it's time to choose a new target
-        if (now - this.lastMoveTime > this.moveInterval) {
-            this.chooseNewTarget();
-            this.lastMoveTime = now;
-            this.moveInterval = 2000 + Math.random() * 4000; // New random interval
-        }
-        
-        // Update position based on movement pattern
-        switch (this.movementPattern) {
-            case 0: // Wandering - move toward target position
-                this.wanderMovement();
-                break;
-            case 1: // Orbiting - circular movement around a center point
-                this.orbitMovement();
-                break;
-            case 2: // Exploring - more erratic movement
-                this.exploreMovement();
-                break;
-        }
-        
-        // Update text position to follow orb
-        this.textPosition[0] = this.position[0];
-        this.textPosition[1] = this.position[1] + 0.3;
-        this.textPosition[2] = this.position[2];
-    }
-    
-    chooseNewTarget() {
-        switch (this.movementPattern) {
-            case 0: // Wandering
-                this.targetPosition = this.getValidPosition();
-                break;
-            case 1: // Orbiting
-                this.orbitCenter = this.getValidPosition();
-                this.orbitRadius = 0.5 + Math.random() * 1.0;
-                break;
-            case 2: // Exploring
-                // Choose a target within a smaller radius for more local exploration
-                const angle = Math.random() * Math.PI * 2;
-                const distance = 0.5 + Math.random() * 1.5;
-                this.targetPosition = [
-                    this.position[0] + Math.cos(angle) * distance,
-                    this.position[1] + (Math.random() - 0.5) * 0.8,
-                    this.position[2] + Math.sin(angle) * distance
-                ];
-                break;
-        }
-    }
-    
-    wanderMovement() {
-        // Move toward target position
-        const dx = this.targetPosition[0] - this.position[0];
-        const dy = this.targetPosition[1] - this.position[1];
-        const dz = this.targetPosition[2] - this.position[2];
-        const distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
-        
-        if (distance > 0.1) {
-            this.position[0] += (dx / distance) * this.moveSpeed;
-            this.position[1] += (dy / distance) * this.moveSpeed;
-            this.position[2] += (dz / distance) * this.moveSpeed;
-        }
-    }
-    
-    orbitMovement() {
-        // Circular movement around orbit center
-        this.orbitAngle += this.moveSpeed * 0.5;
-        this.position[0] = this.orbitCenter[0] + Math.cos(this.orbitAngle) * this.orbitRadius;
-        this.position[2] = this.orbitCenter[2] + Math.sin(this.orbitAngle) * this.orbitRadius;
-        // Slight vertical bobbing
-        this.position[1] = this.orbitCenter[1] + Math.sin(this.orbitAngle * 2) * 0.2;
-    }
-    
-    exploreMovement() {
-        // More erratic movement with some randomness
-        const dx = this.targetPosition[0] - this.position[0];
-        const dy = this.targetPosition[1] - this.position[1];
-        const dz = this.targetPosition[2] - this.position[2];
-        const distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
-        
-        if (distance > 0.1) {
-            // Add some randomness to the movement
-            const randomFactor = 0.3;
-            this.position[0] += (dx / distance) * this.moveSpeed + (Math.random() - 0.5) * randomFactor * this.moveSpeed;
-            this.position[1] += (dy / distance) * this.moveSpeed + (Math.random() - 0.5) * randomFactor * this.moveSpeed;
-            this.position[2] += (dz / distance) * this.moveSpeed + (Math.random() - 0.5) * randomFactor * this.moveSpeed;
-        }
     }
 
     createTextTexture() {
@@ -1258,8 +941,6 @@ float getDist(vec3 samplePos, bool skipVideoPlane, vec3 cameraPos) {
         if (this.textTexture) {
             gl.deleteTexture(this.textTexture);
         }
-        // Remove name from used names when orb is destroyed
-        usedNames.delete(this.name);
     }
 
     updateLabelPosition() {
@@ -1379,9 +1060,6 @@ float getDist(vec3 samplePos, bool skipVideoPlane, vec3 cameraPos) {
                 // Start orb management
                 manageOrbs();
                 
-                // Initialize camera mode indicator
-                updateCameraModeIndicator();
-                
                 requestAnimationFrame(render);
             } catch (error) {
                 console.error('Error during initialization:', error);
@@ -1424,8 +1102,8 @@ float getDist(vec3 samplePos, bool skipVideoPlane, vec3 cameraPos) {
             const orbColorsLoc = gl.getUniformLocation(program, 'uOrbColors');
             const orbCountLoc = gl.getUniformLocation(program, 'uOrbCount');
 
-            const positions = new Float32Array(MAX_ORBS * 3); // Now 6 * 3 = 18
-            const colors = new Float32Array(MAX_ORBS * 3); // Now 6 * 3 = 18
+            const positions = new Float32Array(MAX_ORBS * 3);
+            const colors = new Float32Array(MAX_ORBS * 3);
 
             orbs.forEach((orb, index) => {
                 positions[index * 3] = orb.position[0];
@@ -1447,7 +1125,7 @@ float getDist(vec3 samplePos, bool skipVideoPlane, vec3 cameraPos) {
             const textCountLoc = gl.getUniformLocation(program, 'uTextCount');
             const textTextureLoc = gl.getUniformLocation(program, 'uTextTexture');
 
-            const positions = new Float32Array(MAX_ORBS * 3); // Now 6 * 3 = 18
+            const positions = new Float32Array(MAX_ORBS * 3);
 
             orbs.forEach((orb, index) => {
                 positions[index * 3] = orb.textPosition[0];
@@ -1471,10 +1149,6 @@ float getDist(vec3 samplePos, bool skipVideoPlane, vec3 cameraPos) {
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
             try {
                 resizeCanvas();
-                updateCamera();
-
-                // Update orb movements
-                orbs.forEach(orb => orb.updateMovement());
 
                 // Update stream time
                 const elapsed = Date.now() - streamStartTime;
@@ -1487,19 +1161,11 @@ float getDist(vec3 samplePos, bool skipVideoPlane, vec3 cameraPos) {
                 const timeLocation = gl.getUniformLocation(program, 'iTime');
                 const resolutionLocation = gl.getUniformLocation(program, 'iResolution');
                 const mouseLocation = gl.getUniformLocation(program, 'iMouse');
-                const cameraPosLocation = gl.getUniformLocation(program, 'uCameraPos');
-                const cameraRotLocation = gl.getUniformLocation(program, 'uCameraRot');
-                const usePolarCameraLocation = gl.getUniformLocation(program, 'uUsePolarCamera');
-                const polarRotationLocation = gl.getUniformLocation(program, 'uPolarRotation');
 
                 const time = (Date.now() - startTime) / 1000;
                 gl.uniform1f(timeLocation, time);
                 gl.uniform2f(resolutionLocation, gl.canvas.width, gl.canvas.height);
                 gl.uniform2f(mouseLocation, mouseX, 0);
-                gl.uniform3f(cameraPosLocation, cameraPos[0], cameraPos[1], cameraPos[2]);
-                gl.uniform2f(cameraRotLocation, cameraRot[0], cameraRot[1]);
-                gl.uniform1i(usePolarCameraLocation, usePolarCamera ? 1 : 0);
-                gl.uniform2f(polarRotationLocation, polarPitch, polarRotation);
 
                 updateOrbUniforms();
                 updateTextUniforms();
@@ -1525,10 +1191,64 @@ float getDist(vec3 samplePos, bool skipVideoPlane, vec3 cameraPos) {
 
         window.onload = initGL;
         window.onmousemove = (e) => {
-            if (!mouseLocked) {
-                mouseX = e.clientX;
-            }
+            mouseX = e.clientX;
         };
+
+        // Keyboard controls for camera movement
+        window.addEventListener('keydown', (e) => {
+            switch(e.key.toLowerCase()) {
+                case 'w': keys.w = true; break;
+                case 'a': keys.a = true; break;
+                case 's': keys.s = true; break;
+                case 'd': keys.d = true; break;
+                case 'q': keys.q = true; break;
+                case 'e': keys.e = true; break;
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            switch(e.key.toLowerCase()) {
+                case 'w': keys.w = false; break;
+                case 'a': keys.a = false; break;
+                case 's': keys.s = false; break;
+                case 'd': keys.d = false; break;
+                case 'q': keys.q = false; break;
+                case 'e': keys.e = false; break;
+            }
+        });
+
+        function updateCameraMovement() {
+            const rotation = mouseX * 0.0075 + 0.025;
+            const cosRot = Math.cos(rotation);
+            const sinRot = Math.sin(rotation);
+            
+            // Calculate movement vectors based on camera rotation
+            const forward = { x: sinRot, z: cosRot };
+            const right = { x: cosRot, z: -sinRot };
+            
+            if (keys.w) {
+                cameraPosition.x += forward.x * moveSpeed;
+                cameraPosition.z += forward.z * moveSpeed;
+            }
+            if (keys.s) {
+                cameraPosition.x -= forward.x * moveSpeed;
+                cameraPosition.z -= forward.z * moveSpeed;
+            }
+            if (keys.a) {
+                cameraPosition.x -= right.x * moveSpeed;
+                cameraPosition.z -= right.z * moveSpeed;
+            }
+            if (keys.d) {
+                cameraPosition.x += right.x * moveSpeed;
+                cameraPosition.z += right.z * moveSpeed;
+            }
+            if (keys.q) {
+                cameraPosition.y -= moveSpeed;
+            }
+            if (keys.e) {
+                cameraPosition.y += moveSpeed;
+            }
+        }
     </script>
 </body>
 </html>
