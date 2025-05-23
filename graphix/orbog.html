@@ -307,7 +307,7 @@
     </div>
     <img id="displacementMap" src="./displace.png" 
          style="display: none;" crossorigin="anonymous">
-         <video id="videoTexture" style="display: none;" loop playsinline>
+         <video id="videoTexture" style="display: none;" loop playsinline muted autoplay webkit-playsinline>
             <source src="./trans2.webm" type="video/webm">
          </video>
     <script id="vertexShader" type="x-shader/x-vertex">
@@ -901,6 +901,9 @@ float getDist(vec3 samplePos, bool skipVideoPlane, vec3 cameraPos) {
                     audioContext.resume();
                 }
                 
+                // Unmute video for mobile after user interaction
+                video.muted = false;
+                
                 video.play().then(() => {
                     videoStarted = true;
                     playOverlay.classList.add('hidden');
@@ -915,6 +918,14 @@ float getDist(vec3 samplePos, bool skipVideoPlane, vec3 cameraPos) {
                     
                 }).catch(error => {
                     console.warn('Video playback failed:', error);
+                    // Try playing muted if unmuted fails (fallback for mobile)
+                    video.muted = true;
+                    video.play().then(() => {
+                        videoStarted = true;
+                        playOverlay.classList.add('hidden');
+                    }).catch(err => {
+                        console.error('Muted video playback also failed:', err);
+                    });
                 });
             }
         }
@@ -1504,18 +1515,23 @@ float getDist(vec3 samplePos, bool skipVideoPlane, vec3 cameraPos) {
                 updateOrbUniforms();
                 updateTextUniforms();
 
+                // Ensure video texture is bound AFTER text texture to prevent conflicts
                 if (video.readyState >= video.HAVE_CURRENT_DATA) {
-    gl.activeTexture(gl.TEXTURE1);  // Bind to texture unit 1
-    gl.bindTexture(gl.TEXTURE_2D, videoTexture);
-    gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        video
-    );
-}
+                    gl.activeTexture(gl.TEXTURE1);  // Bind to texture unit 1
+                    gl.bindTexture(gl.TEXTURE_2D, videoTexture);
+                    gl.texImage2D(
+                        gl.TEXTURE_2D,
+                        0,
+                        gl.RGBA,
+                        gl.RGBA,
+                        gl.UNSIGNED_BYTE,
+                        video
+                    );
+                } else if (isMobile) {
+                    // Debug logging for mobile
+                    console.log('Video not ready on mobile. ReadyState:', video.readyState, 'Current time:', video.currentTime);
+                }
+                
                 gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
                 requestAnimationFrame(render);
             } catch (error) {
